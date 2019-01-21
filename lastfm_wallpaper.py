@@ -204,7 +204,7 @@ def main():
     shadow.paste(args.shadow_color, (shadow_pos, shadow_pos, extent + shadow_pos, extent + shadow_pos))
     shadow = shadow.filter(ImageFilter.GaussianBlur(radius=args.shadow_blur))
 
-    for i in range(count):
+    for i in reversed(range(count)):
         path = image_path(album_dir, i + 1)
         img = Image.open(path, 'r')
         img = img.resize((extent, extent), resample=Image.BICUBIC)
