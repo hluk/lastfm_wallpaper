@@ -5,6 +5,7 @@ Creates wallpaper with personal top albums from Last.fm.
 
 import argparse
 import configparser
+import datetime
 import hashlib
 import logging
 import math
@@ -81,16 +82,25 @@ def download_cover(album, path, cache_dir):
     if os.path.isfile(cached_path):
         logger.info('Using cover: %s', album)
     else:
-        cover_url = album.get_cover_image(pylast.COVER_MEGA)
+        try:
+            cover_url = album.get_cover_image(pylast.COVER_MEGA)
+            if not cover_url:
+                logger.warning('Missing cover: %s', album)
+                return False
+        except pylast.WSError as e:
+            logger.warning('Missing cover: %s (%s)', album, e)
+            return False
+
         logger.info('Downloading cover: %s', album)
         r = requests.get(cover_url, stream=True)
         with open(cached_path, 'wb') as f:
             shutil.copyfileobj(r.raw, f)
 
     shutil.copyfile(cached_path, path)
+    return True
 
 
-def download_covers(api_key, api_secret, user, album_dir, max_count):
+def download_covers(api_key, api_secret, user, album_dir, from_date, to_date, max_count):
     cache_dir = os.path.join(album_dir, '.cache')
     os.makedirs(cache_dir, exist_ok=True)
 
@@ -101,13 +111,17 @@ def download_covers(api_key, api_secret, user, album_dir, max_count):
     )
 
     user = network.get_user(user)
-    top_items = user.get_top_albums(period=pylast.PERIOD_7DAYS, limit=max_count)
+    top_items = user.get_weekly_album_charts(
+        from_date=from_date.strftime('%s'),
+        to_date=to_date.strftime('%s'))
     count = 0
     for top_item in top_items:
         album = top_item.item
-        count += 1
-        path = image_path(album_dir, count)
-        download_cover(album, path, cache_dir)
+        path = image_path(album_dir, count + 1)
+        if download_cover(album, path, cache_dir):
+            count += 1
+            if count == max_count:
+                break
 
     return count
 
@@ -149,6 +163,12 @@ def parse_args():
     parser.add_argument(
         '--shadow-color', default='black',
         help='shadow color')
+    parser.add_argument(
+        '--days', default=7, type=int,
+        help='number of days to consider')
+    parser.add_argument(
+        '--hours', default=0, type=int,
+        help='number of additional hours to consider')
 
     return parser.parse_args()
 
@@ -175,13 +195,21 @@ def main():
     if args.cached:
         count = max_count
     else:
+        to_date = datetime.datetime.now()
+        from_date = to_date - datetime.timedelta(days=args.days) - datetime.timedelta(hours=args.hours)
         count = download_covers(
             api_key=config['api_key'],
             api_secret=config['api_secret'],
             user=config['user'],
             album_dir=album_dir,
+            from_date=from_date,
+            to_date=to_date,
             max_count=max_count
         )
+
+    if count <= 0:
+        logger.error("No albums in given time range")
+        exit(1)
 
     i = randrange(1, count)
     path = image_path(album_dir, i)
