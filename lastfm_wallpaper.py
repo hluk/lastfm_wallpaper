@@ -169,18 +169,27 @@ def parse_args():
     parser.add_argument(
         '--hours', default=0, type=int,
         help='number of additional hours to consider')
+    parser.add_argument(
+        '--base', default='random',
+        help=('base image file'
+              '; "random" to pick one of the covers'
+              '; "top" to pick top album cover'))
+    parser.add_argument(
+        '--base-blur', default=3, type=int,
+        help='base image blur')
 
     return parser.parse_args()
 
 
-def background_image(path, width, height):
+def background_image(path, width, height, blur):
     background = Image.open(path, 'r')
+    background = background.convert('RGBA')
     extent = math.floor(max(width, height))
     x = (extent - width) // 2
     y = (extent - height) // 2
     background = background.resize((extent, extent), resample=Image.BICUBIC)
     background = background.crop((x, y, x + width, y + height))
-    return background.filter(ImageFilter.GaussianBlur(radius=3))
+    return background.filter(ImageFilter.GaussianBlur(radius=blur))
 
 
 def main():
@@ -211,9 +220,14 @@ def main():
         logger.error("No albums in given time range")
         exit(1)
 
-    i = randrange(1, count)
-    path = image_path(album_dir, i)
-    background = background_image(path, width, height)
+    if args.base == 'random':
+        i = randrange(1, count)
+        path = image_path(album_dir, i)
+    elif args.base == 'top':
+        path = image_path(album_dir, 1)
+    else:
+        path = args.base
+    background = background_image(path, width, height, blur=args.base_blur)
 
     rows = args.rows
     columns = math.ceil(count / rows)
