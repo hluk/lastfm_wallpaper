@@ -44,11 +44,7 @@ logger = logging.getLogger(__name__)
 
 class TupleArgument:
     def __init__(self, argument, separator):
-        self.separator = separator
         self.x, self.y = map(int, argument.split(separator))
-
-    def __str__(self):
-        return '{}x{}'.format(self.x, self.y)
 
 
 class Size(TupleArgument):
