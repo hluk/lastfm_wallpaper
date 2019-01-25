@@ -181,6 +181,7 @@ def parse_args():
     parser.add_argument(
         '--hours', default=0, type=int,
         help='number of additional hours to consider')
+
     parser.add_argument(
         '--base', default='random',
         help=('base image file'
@@ -199,6 +200,16 @@ def parse_args():
         '--base-color', default=50, type=int,
         help='base image color percentage')
 
+    parser.add_argument(
+        '--cover-brightness', default=100, type=int,
+        help='cover image brightness percentage')
+    parser.add_argument(
+        '--cover-noise', default=10, type=int,
+        help='cover image noise percentage')
+    parser.add_argument(
+        '--cover-color', default=100, type=int,
+        help='cover image color percentage')
+
     return parser.parse_args()
 
 
@@ -213,14 +224,25 @@ def background_image(path, width, height, blur):
     return background.filter(ImageFilter.GaussianBlur(radius=blur))
 
 
-def add_noise(background, noise_percentage):
+def add_noise(img, noise_percentage):
+    if noise_percentage <= 0:
+        return img
+
     if not HAS_NUMPY:
         logger.warning('To add noise to image, install numpy')
-        return background
+        return img
 
-    noise_data = numpy.random.normal(0, 255 ** 3, (background.height, background.width))
+    noise_data = numpy.random.normal(0, 255 ** 3, (img.height, img.width))
     noise_image = Image.fromarray(noise_data, mode='RGB').convert('RGBA')
-    return ImageChops.blend(background, noise_image, noise_percentage / 100)
+    return ImageChops.blend(img, noise_image, noise_percentage / 100)
+
+
+def brighter(img, brightness_percentage):
+    return ImageEnhance.Brightness(img).enhance(brightness_percentage / 100)
+
+
+def colorize(img, colorize_percentage):
+    return ImageEnhance.Color(img).enhance(colorize_percentage / 100)
 
 
 def main():
@@ -260,14 +282,9 @@ def main():
         path = args.base
     background = background_image(path, width, height, blur=args.base_blur)
 
-    if args.base_noise > 0:
-        background = add_noise(background, args.base_noise)
-
-    if args.base_brightness != 100:
-        background = ImageEnhance.Brightness(background).enhance(args.base_brightness / 100)
-
-    if args.base_color != 100:
-        background = ImageEnhance.Color(background).enhance(args.base_color / 100)
+    background = add_noise(background, args.base_noise)
+    background = brighter(background, args.base_brightness)
+    background = colorize(background, args.base_color)
 
     rows = args.rows
     columns = math.ceil(count / rows)
@@ -289,6 +306,10 @@ def main():
         img = Image.open(path, 'r')
         img = img.resize((extent - 2 * border, extent - 2 * border), resample=Image.BICUBIC)
         img = ImageOps.expand(img, border, args.border_color)
+
+        img = add_noise(img, args.cover_noise)
+        img = brighter(img, args.cover_brightness)
+        img = colorize(img, args.cover_color)
 
         row, column = divmod(i, columns)
         x = column * extent + (column + 1) * padding_x
