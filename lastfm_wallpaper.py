@@ -190,6 +190,9 @@ def parse_args():
         '--base-blur', default=3, type=int,
         help='base image blur')
     parser.add_argument(
+        '--base-brightness', default=100, type=int,
+        help='base image brightness percentage')
+    parser.add_argument(
         '--base-noise', default=10, type=int,
         help='base image noise percentage')
     parser.add_argument(
@@ -259,6 +262,9 @@ def main():
 
     if args.base_noise > 0:
         background = add_noise(background, args.base_noise)
+
+    if args.base_brightness != 100:
+        background = ImageEnhance.Brightness(background).enhance(args.base_brightness / 100)
 
     if args.base_color != 100:
         background = ImageEnhance.Color(background).enhance(args.base_color / 100)
