@@ -15,7 +15,7 @@ import requests
 import shutil
 
 from random import randrange
-from PIL import Image, ImageChops, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps
 
 try:
     import numpy
@@ -192,6 +192,9 @@ def parse_args():
     parser.add_argument(
         '--base-noise', default=10, type=int,
         help='base image noise percentage')
+    parser.add_argument(
+        '--base-color', default=50, type=int,
+        help='base image color percentage')
 
     return parser.parse_args()
 
@@ -256,6 +259,9 @@ def main():
 
     if args.base_noise > 0:
         background = add_noise(background, args.base_noise)
+
+    if args.base_color != 100:
+        background = ImageEnhance.Color(background).enhance(args.base_color / 100)
 
     rows = args.rows
     columns = math.ceil(count / rows)
