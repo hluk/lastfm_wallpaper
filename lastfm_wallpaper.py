@@ -164,6 +164,12 @@ def parse_args():
         '--shadow-color', default='black',
         help='shadow color')
     parser.add_argument(
+        '--border-color', default='black',
+        help='border color')
+    parser.add_argument(
+        '--border-size', default=10, type=int,
+        help='border size')
+    parser.add_argument(
         '--days', default=7, type=int,
         help='number of days to consider')
     parser.add_argument(
@@ -233,8 +239,8 @@ def main():
     columns = math.ceil(count / rows)
     space = args.space
     extent = min((height - space * rows) // rows, (width - space * columns) // columns)
-    border_x = (width - extent * columns) // (columns + 1)
-    border_y = (height - extent * rows) // (rows + 1)
+    padding_x = (width - extent * columns) // (columns + 1)
+    padding_y = (height - extent * rows) // (rows + 1)
 
     shadow_size = int(extent * 1.2)
     shadow = Image.new('RGBA', (shadow_size, shadow_size))
@@ -242,14 +248,16 @@ def main():
     shadow.paste(args.shadow_color, (shadow_pos, shadow_pos, extent + shadow_pos, extent + shadow_pos))
     shadow = shadow.filter(ImageFilter.GaussianBlur(radius=args.shadow_blur))
 
+    border = args.border_size
+
     for i in reversed(range(count)):
         path = image_path(album_dir, i + 1)
         img = Image.open(path, 'r')
-        img = img.resize((extent, extent), resample=Image.BICUBIC)
+        img = img.resize((extent - 2 * border, extent - 2 * border), resample=Image.BICUBIC)
 
         row, column = divmod(i, columns)
-        x = column * extent + (column + 1) * border_x
-        y = row * extent + (row + 1) * border_y
+        x = column * extent + (column + 1) * padding_x
+        y = row * extent + (row + 1) * padding_y
 
         dest = [x - shadow_pos + args.shadow_offset.x, y - shadow_pos + args.shadow_offset.y]
         src = [0, 0]
@@ -259,7 +267,9 @@ def main():
                 dest[j] = 0
         background.alpha_composite(shadow, dest=tuple(dest), source=tuple(src))
 
-        background.paste(img, box=(x, y))
+        background.paste(args.border_color, box=(x, y, x + extent, y + extent))
+
+        background.paste(img, box=(x + border, y + border))
 
     path = image_path(album_dir, 'wallpaper')
     background.save(path)
