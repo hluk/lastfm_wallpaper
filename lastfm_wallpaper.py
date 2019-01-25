@@ -15,7 +15,13 @@ import requests
 import shutil
 
 from random import randrange
-from PIL import Image, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageFilter, ImageOps
+
+try:
+    import numpy
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
 
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser('~/.config/lastfm_wallpaper.ini')
 DEFAULT_SERVER_NAME = 'default'
@@ -183,6 +189,9 @@ def parse_args():
     parser.add_argument(
         '--base-blur', default=3, type=int,
         help='base image blur')
+    parser.add_argument(
+        '--base-noise', default=10, type=int,
+        help='base image noise percentage')
 
     return parser.parse_args()
 
@@ -196,6 +205,16 @@ def background_image(path, width, height, blur):
     background = background.resize((extent, extent), resample=Image.BICUBIC)
     background = background.crop((x, y, x + width, y + height))
     return background.filter(ImageFilter.GaussianBlur(radius=blur))
+
+
+def add_noise(background, noise_percentage):
+    if not HAS_NUMPY:
+        logger.warning('To add noise to image, install numpy')
+        return background
+
+    noise_data = numpy.random.normal(0, 255 ** 3, (background.height, background.width))
+    noise_image = Image.fromarray(noise_data, mode='RGB').convert('RGBA')
+    return ImageChops.blend(background, noise_image, noise_percentage / 100)
 
 
 def main():
@@ -234,6 +253,9 @@ def main():
     else:
         path = args.base
     background = background_image(path, width, height, blur=args.base_blur)
+
+    if args.base_noise > 0:
+        background = add_noise(background, args.base_noise)
 
     rows = args.rows
     columns = math.ceil(count / rows)
