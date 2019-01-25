@@ -15,7 +15,7 @@ import requests
 import shutil
 
 from random import randrange
-from PIL import Image, ImageFilter
+from PIL import Image, ImageFilter, ImageOps
 
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser('~/.config/lastfm_wallpaper.ini')
 DEFAULT_SERVER_NAME = 'default'
@@ -254,6 +254,7 @@ def main():
         path = image_path(album_dir, i + 1)
         img = Image.open(path, 'r')
         img = img.resize((extent - 2 * border, extent - 2 * border), resample=Image.BICUBIC)
+        img = ImageOps.expand(img, border, args.border_color)
 
         row, column = divmod(i, columns)
         x = column * extent + (column + 1) * padding_x
@@ -267,9 +268,7 @@ def main():
                 dest[j] = 0
         background.alpha_composite(shadow, dest=tuple(dest), source=tuple(src))
 
-        background.paste(args.border_color, box=(x, y, x + extent, y + extent))
-
-        background.paste(img, box=(x + border, y + border))
+        background.paste(img, box=(x, y))
 
     path = image_path(album_dir, 'wallpaper')
     background.save(path)
