@@ -190,10 +190,10 @@ def parse_args():
         '--base-blur', default=3, type=int,
         help='base image blur')
     parser.add_argument(
-        '--base-brightness', default=100, type=int,
+        '--base-brightness', default=80, type=int,
         help='base image brightness percentage')
     parser.add_argument(
-        '--base-noise', default=10, type=int,
+        '--base-noise', default=30, type=int,
         help='base image noise percentage')
     parser.add_argument(
         '--base-color', default=50, type=int,
