@@ -30,6 +30,10 @@ DEFAULT_MAX_COVER_COUNT = 12
 DEFAULT_ROW_COUNT = 3
 DEFAULT_SPACE = 50
 
+DEFAULT_WIDTH = 1920
+DEFAULT_HEIGHT = 1080
+DEFAULT_SIZE = '{}x{}'.format(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+
 API_GET_TOKEN = 'auth.gettoken'
 API_TOP_ALBUMS = 'user.gettopalbums'
 
@@ -140,7 +144,7 @@ def parse_args():
         '--dir', default=DEFAULT_ALBUM_COVER_DIR,
         help='directory to store album covers')
     parser.add_argument(
-        '--size', default='1920x1080', type=Size,
+        '--size', default=DEFAULT_SIZE, type=Size,
         help='wallpaper size')
     parser.add_argument(
         '--count', default=DEFAULT_MAX_COVER_COUNT, type=int,
@@ -312,6 +316,9 @@ def main():
         logger.error("No albums in given time range")
         exit(1)
 
+    scale = max(1, int(width / DEFAULT_WIDTH))
+    base_blur = args.base_blur * scale
+
     if args.base == 'random':
         i = randrange(1, count)
         path = image_path(album_dir, i)
@@ -319,7 +326,7 @@ def main():
         path = image_path(album_dir, 1)
     else:
         path = args.base
-    background = background_image(path, width, height, blur=args.base_blur)
+    background = background_image(path, width, height, blur=base_blur)
 
     background = add_noise(background, args.base_noise)
     background = brighter(background, args.base_brightness)
@@ -327,7 +334,7 @@ def main():
 
     rows = args.rows
     columns = math.ceil(count / rows)
-    space = args.space
+    space = args.space * scale
     extent = min((height - space * rows) // rows, (width - space * columns) // columns)
     padding_x = (width - extent * columns) // (columns + 1)
     padding_y = (height - extent * rows) // (rows + 1)
@@ -336,9 +343,12 @@ def main():
     shadow = Image.new('RGBA', (shadow_size, shadow_size))
     shadow_pos = (shadow_size - extent) // 2
     shadow.paste(args.shadow_color, (shadow_pos, shadow_pos, extent + shadow_pos, extent + shadow_pos))
-    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=args.shadow_blur))
+    shadow_blur = args.shadow_blur * scale
+    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=shadow_blur))
+    shadow_x = args.shadow_offset.x * scale
+    shadow_y = args.shadow_offset.y * scale
 
-    border = args.border_size
+    border = args.border_size * scale
 
     positions = list(spiral(rows, columns))
 
@@ -361,7 +371,7 @@ def main():
             extent=extent
         )
 
-        paste(shadow1, x + args.shadow_offset.x, y + args.shadow_offset.y, background)
+        paste(shadow1, x + shadow_x, y + shadow_y, background)
 
     if args.cover_glow > 0:
         for i in reversed(range(count)):
