@@ -164,7 +164,7 @@ def parse_args():
         help='shadow offset')
     parser.add_argument(
         '--shadow-blur', default=4, type=int,
-        help='shadow offset')
+        help='shadow blur')
     parser.add_argument(
         '--shadow-color', default='black',
         help='shadow color')
