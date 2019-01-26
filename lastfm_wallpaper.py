@@ -210,6 +210,9 @@ def parse_args():
     parser.add_argument(
         '--cover-color', default=100, type=int,
         help='cover image color percentage')
+    parser.add_argument(
+        '--cover-glow', default=40, type=int,
+        help='cover glow amount')
 
     return parser.parse_args()
 
@@ -359,6 +362,39 @@ def main():
         )
 
         paste(shadow1, x + args.shadow_offset.x, y + args.shadow_offset.y, background)
+
+    if args.cover_glow > 0:
+        for i in reversed(range(count)):
+            path = image_path(album_dir, i + 1)
+            img = Image.open(path, 'r')
+            img = img.convert('RGBA')
+            extent1 = int(extent * (100 + args.cover_glow) / 100)
+            img = img.resize((extent1, extent1))
+            img = colorize(img, 200)
+            img = brighter(img, 200)
+            img = img.filter(ImageFilter.GaussianBlur(radius=extent // 10))
+
+            extent2 = int(extent1 * 0.6)
+            mask = img.convert('L')
+            mask = mask.resize((extent2, extent2))
+            d = (extent1 - extent2) // 2
+            mask = ImageOps.expand(mask, d, 'black')
+            mask = mask.resize((extent1, extent1))
+            mask = mask.filter(ImageFilter.GaussianBlur(radius=extent // 10))
+            img.putalpha(mask)
+
+            if angles:
+                img = rotate(img, angles[i])
+
+            row, column = positions[i]
+            x, y = cover_position(
+                row, column,
+                padding_x=padding_x,
+                padding_y=padding_y,
+                extent=extent
+            )
+
+            paste(img, x, y, background)
 
     for i in reversed(range(count)):
         path = image_path(album_dir, i + 1)
