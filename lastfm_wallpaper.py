@@ -19,9 +19,8 @@ from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps
 
 try:
     import numpy
-    HAS_NUMPY = True
 except ImportError:
-    HAS_NUMPY = False
+    pass
 
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser('~/.config/lastfm_wallpaper.ini')
 DEFAULT_SERVER_NAME = 'default'
@@ -228,7 +227,7 @@ def add_noise(img, noise_percentage):
     if noise_percentage <= 0:
         return img
 
-    if not HAS_NUMPY:
+    if not numpy:
         logger.warning('To add noise to image, install numpy')
         return img
 
