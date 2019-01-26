@@ -49,18 +49,13 @@ logger = logging.getLogger(__name__)
 
 
 class TupleArgument:
-    def __init__(self, argument, separator):
+    def __init__(self, argument, separator=','):
         self.x, self.y = map(int, argument.split(separator))
 
 
 class Size(TupleArgument):
     def __init__(self, size):
         super().__init__(size, 'x')
-
-
-class Coordinates(TupleArgument):
-    def __init__(self, coordinates):
-        super().__init__(coordinates, ',')
 
 
 def parse_config(config_path, server):
@@ -159,8 +154,13 @@ def parse_args():
     parser.add_argument(
         '--cached', action='store_true',
         help='use already downloaded covers')
+
     parser.add_argument(
-        '--shadow-offset', default='1,1', type=Coordinates,
+        '--angle-range', default='-5,5', type=TupleArgument,
+        help='random cover rotation')
+
+    parser.add_argument(
+        '--shadow-offset', default='1,1', type=TupleArgument,
         help='shadow offset')
     parser.add_argument(
         '--shadow-blur', default=4, type=int,
@@ -168,12 +168,14 @@ def parse_args():
     parser.add_argument(
         '--shadow-color', default='black',
         help='shadow color')
+
     parser.add_argument(
         '--border-color', default='black',
         help='border color')
     parser.add_argument(
         '--border-size', default=10, type=int,
         help='border size')
+
     parser.add_argument(
         '--days', default=7, type=int,
         help='number of days to consider')
@@ -244,6 +246,40 @@ def colorize(img, colorize_percentage):
     return ImageEnhance.Color(img).enhance(colorize_percentage / 100)
 
 
+def rotate(img, angle):
+    return img.rotate(angle, resample=Image.BICUBIC, expand=True, fillcolor=(0, 0, 0, 0))
+
+
+def paste(img, x, y, background):
+    dest = [x - img.width // 2, y - img.height // 2]
+    src = [0, 0]
+    for j in range(2):
+        if dest[j] < 0:
+            src[j] = -dest[j]
+            dest[j] = 0
+    background.alpha_composite(img, dest=tuple(dest), source=tuple(src))
+
+
+def spiral(rows, columns):
+    X, Y = columns, rows
+    x = y = 0
+    dx = 0
+    dy = -1
+    for i in range(max(X, Y)**2):
+        if (-X/2 < x <= X/2) and (-Y/2 < y <= Y/2):
+            yield (y + (Y - 1) // 2, x + (X - 1) // 2)
+        if x == y or (x < 0 and x == -y) or (x > 0 and x == 1-y):
+            dx, dy = -dy, dx
+        x, y = x+dx, y+dy
+
+
+def cover_position(
+        row, column, padding_x, padding_y, extent):
+    x = column * extent + extent // 2 + (column + 1) * padding_x
+    y = row * extent + extent // 2 + (row + 1) * padding_y
+    return x, y
+
+
 def main():
     args = parse_args()
 
@@ -300,6 +336,29 @@ def main():
 
     border = args.border_size
 
+    positions = list(spiral(rows, columns))
+
+    if args.angle_range.x < args.angle_range.y:
+        angles = [randrange(args.angle_range.x, args.angle_range.y) for _ in range(count)]
+    else:
+        angles = []
+
+    for i in range(count):
+        if angles:
+            shadow1 = shadow.rotate(angles[i], resample=Image.BICUBIC, expand=True, fillcolor=(0, 0, 0, 0))
+        else:
+            shadow1 = shadow
+
+        row, column = positions[i]
+        x, y = cover_position(
+            row, column,
+            padding_x=padding_x,
+            padding_y=padding_y,
+            extent=extent
+        )
+
+        paste(shadow1, x + args.shadow_offset.x, y + args.shadow_offset.y, background)
+
     for i in reversed(range(count)):
         path = image_path(album_dir, i + 1)
         img = Image.open(path, 'r')
@@ -310,19 +369,18 @@ def main():
         img = brighter(img, args.cover_brightness)
         img = colorize(img, args.cover_color)
 
-        row, column = divmod(i, columns)
-        x = column * extent + (column + 1) * padding_x
-        y = row * extent + (row + 1) * padding_y
+        if angles:
+            img = rotate(img, angles[i])
 
-        dest = [x - shadow_pos + args.shadow_offset.x, y - shadow_pos + args.shadow_offset.y]
-        src = [0, 0]
-        for j in range(2):
-            if dest[j] < 0:
-                src[j] = -dest[j]
-                dest[j] = 0
-        background.alpha_composite(shadow, dest=tuple(dest), source=tuple(src))
+        row, column = positions[i]
+        x, y = cover_position(
+            row, column,
+            padding_x=padding_x,
+            padding_y=padding_y,
+            extent=extent
+        )
 
-        background.paste(img, box=(x, y))
+        paste(img, x, y, background)
 
     path = image_path(album_dir, 'wallpaper')
     background.save(path)
