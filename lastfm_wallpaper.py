@@ -24,7 +24,6 @@ except ImportError:
 
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser('~/.config/lastfm_wallpaper.ini')
 DEFAULT_SERVER_NAME = 'default'
-DEFAULT_API_URL = 'https://www.last.fm/api'
 DEFAULT_ALBUM_COVER_DIR = os.path.expanduser('~/.cache/lastfm_wallpaper')
 DEFAULT_MAX_COVER_COUNT = 12
 DEFAULT_ROW_COUNT = 3
@@ -118,9 +117,7 @@ class CoverLoader:
 
 
 def parse_config(config_path, server):
-    config = configparser.ConfigParser(defaults={
-        'URL': DEFAULT_API_URL,
-    })
+    config = configparser.ConfigParser()
     config.read(config_path)
     try:
         return config[server]
