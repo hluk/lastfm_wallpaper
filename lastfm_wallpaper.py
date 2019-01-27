@@ -493,8 +493,6 @@ def main():
         artist = img.info.get('artist')
         album = img.info.get('album')
         if artist and album:
-            if args.cached:
-                logger.info('Cover: %s - %s', artist, album)
             albums.insert(0, '{} - {}'.format(artist, album))
 
         border_color = args.border_color
@@ -512,7 +510,11 @@ def main():
 
         layout.paste(i, img)
 
-    image_info_dict['albums'] = '\n'.join(albums)
+    albums = '\n'.join(albums)
+    if args.cached:
+        logger.info('Using cached covers for albums:\n%s', albums)
+
+    image_info_dict['albums'] = albums
     image_info_dict['url'] = user.get_url()
 
     path = image_path(album_dir, 'wallpaper')
