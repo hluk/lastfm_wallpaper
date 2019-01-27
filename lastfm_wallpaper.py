@@ -198,6 +198,11 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument(
+        '--info', action='store_true',
+        help='print list of albums in the last wallpaper and exit')
+
     parser.add_argument(
         '--config', default=DEFAULT_CONFIG_FILE_PATH,
         help='config file path')
@@ -388,13 +393,33 @@ def init_random_seed(seed):
         numpy.random.seed(seed)
 
 
+def print_info(album_dir):
+    path = image_path(album_dir, 'wallpaper')
+    if not os.path.isfile(path):
+        logger.error("No wallpaper found")
+        exit(1)
+
+    img = Image.open(path, 'r')
+    albums = img.info.get('albums')
+    if not albums:
+        logger.error("No album information in wallpaper")
+        exit(1)
+
+    print(albums)
+    exit(0)
+
+
 def main():
     args = parse_args()
+
+    album_dir = args.dir
+
+    if args.info:
+        print_info(album_dir)
 
     init_random_seed(args.random_seed)
 
     width, height = args.size.x, args.size.y
-    album_dir = args.dir
     max_count = args.count
 
     config = parse_config(args.config, args.server)
