@@ -316,6 +316,24 @@ def blur(img, radius):
     return img.filter(ImageFilter.GaussianBlur(radius=radius))
 
 
+def glow(img, amount):
+    extent1 = img.width
+    img = colorize(img, 200)
+    img = brighter(img, 200)
+    img = blur(img, amount)
+
+    extent2 = int(img.width * 0.6)
+    mask = img.convert('L')
+    mask = mask.resize((extent2, extent2))
+    d = (extent1 - extent2) // 2
+    mask = ImageOps.expand(mask, d, 'black')
+    mask = mask.resize((img.width, extent1))
+    mask = blur(mask, amount)
+    img.putalpha(mask)
+
+    return img
+
+
 def paste(img, x, y, background):
     dest = [x - img.width // 2, y - img.height // 2]
     src = [0, 0]
@@ -409,19 +427,7 @@ def main():
         for i in reversed(range(count)):
             extent1 = int(extent * (100 + args.cover_glow) / 100)
             img = loader.cover(i, extent1)
-            img = colorize(img, 200)
-            img = brighter(img, 200)
-            img = blur(img, extent // 10)
-
-            extent2 = int(extent1 * 0.6)
-            mask = img.convert('L')
-            mask = mask.resize((extent2, extent2))
-            d = (extent1 - extent2) // 2
-            mask = ImageOps.expand(mask, d, 'black')
-            mask = mask.resize((extent1, extent1))
-            mask = blur(mask, extent // 10)
-            img.putalpha(mask)
-
+            img = glow(img, extent // 10)
             layout.paste(i, img)
 
     for i in reversed(range(count)):
