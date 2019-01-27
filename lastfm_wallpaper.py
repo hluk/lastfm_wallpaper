@@ -229,7 +229,7 @@ def parse_args():
         help='use already downloaded covers')
 
     parser.add_argument(
-        '--angle-range', default='-5,5', type=TupleArgument,
+        '--angle-range', default='0,0', type=TupleArgument,
         help='random cover rotation')
 
     parser.add_argument(
