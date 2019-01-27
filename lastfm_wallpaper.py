@@ -62,6 +62,43 @@ class Size(TupleArgument):
         super().__init__(size, 'x')
 
 
+class Layout:
+    def __init__(self, background, rows, columns, width, height, space, angle_range):
+        self.background = background
+        self.rows = rows
+        self.columns = columns
+        self.space = space
+
+        self.angle_range = angle_range
+        self.angles = []
+
+        self.extent = extent = min((height - space * rows) // rows, (width - space * columns) // columns)
+        self.padding_x = (width - extent * columns) // (columns + 1)
+        self.padding_y = (height - extent * rows) // (rows + 1)
+
+        self.positions = list(spiral(rows, columns))
+
+    def paste(self, cell, img, offset=(0, 0)):
+        img = rotate(img, self.angle(cell))
+
+        row, column = self.positions[cell]
+        x = column * self.extent + self.extent // 2 + (column + 1) * self.padding_x
+        y = row * self.extent + self.extent // 2 + (row + 1) * self.padding_y
+        paste(img, x + offset[0], y + offset[1], self.background)
+
+    def angle(self, cell):
+        if self.angle_range.x >= self.angle_range.y:
+            return 0
+
+        count_to_add = cell + 1 - len(self.angles)
+        self.angles.extend(
+            randrange(self.angle_range.x, self.angle_range.y)
+            for _ in range(count_to_add)
+        )
+
+        return self.angles[cell]
+
+
 def parse_config(config_path, server):
     config = configparser.ConfigParser(defaults={
         'URL': DEFAULT_API_URL,
@@ -281,13 +318,6 @@ def spiral(rows, columns):
         y += dy
 
 
-def cover_position(
-        row, column, padding_x, padding_y, extent):
-    x = column * extent + extent // 2 + (column + 1) * padding_x
-    y = row * extent + extent // 2 + (row + 1) * padding_y
-    return x, y
-
-
 def main():
     args = parse_args()
 
@@ -335,9 +365,8 @@ def main():
     rows = args.rows
     columns = math.ceil(count / rows)
     space = args.space * scale
-    extent = min((height - space * rows) // rows, (width - space * columns) // columns)
-    padding_x = (width - extent * columns) // (columns + 1)
-    padding_y = (height - extent * rows) // (rows + 1)
+    layout = Layout(background, rows, columns, width, height, space, args.angle_range)
+    extent = layout.extent
 
     shadow_size = int(extent * 1.2)
     shadow = Image.new('RGBA', (shadow_size, shadow_size))
@@ -345,33 +374,12 @@ def main():
     shadow.paste(args.shadow_color, (shadow_pos, shadow_pos, extent + shadow_pos, extent + shadow_pos))
     shadow_blur = args.shadow_blur * scale
     shadow = shadow.filter(ImageFilter.GaussianBlur(radius=shadow_blur))
-    shadow_x = args.shadow_offset.x * scale
-    shadow_y = args.shadow_offset.y * scale
+    shadow_offset = (args.shadow_offset.x * scale, args.shadow_offset.y * scale)
 
     border = args.border_size * scale
 
-    positions = list(spiral(rows, columns))
-
-    if args.angle_range.x < args.angle_range.y:
-        angles = [randrange(args.angle_range.x, args.angle_range.y) for _ in range(count)]
-    else:
-        angles = []
-
     for i in range(count):
-        if angles:
-            shadow1 = shadow.rotate(angles[i], resample=Image.BICUBIC, expand=True, fillcolor=(0, 0, 0, 0))
-        else:
-            shadow1 = shadow
-
-        row, column = positions[i]
-        x, y = cover_position(
-            row, column,
-            padding_x=padding_x,
-            padding_y=padding_y,
-            extent=extent
-        )
-
-        paste(shadow1, x + shadow_x, y + shadow_y, background)
+        layout.paste(i, shadow, shadow_offset)
 
     if args.cover_glow > 0:
         for i in reversed(range(count)):
@@ -393,18 +401,7 @@ def main():
             mask = mask.filter(ImageFilter.GaussianBlur(radius=extent // 10))
             img.putalpha(mask)
 
-            if angles:
-                img = rotate(img, angles[i])
-
-            row, column = positions[i]
-            x, y = cover_position(
-                row, column,
-                padding_x=padding_x,
-                padding_y=padding_y,
-                extent=extent
-            )
-
-            paste(img, x, y, background)
+            layout.paste(i, img)
 
     for i in reversed(range(count)):
         path = image_path(album_dir, i + 1)
@@ -416,18 +413,7 @@ def main():
         img = brighter(img, args.cover_brightness)
         img = colorize(img, args.cover_color)
 
-        if angles:
-            img = rotate(img, angles[i])
-
-        row, column = positions[i]
-        x, y = cover_position(
-            row, column,
-            padding_x=padding_x,
-            padding_y=padding_y,
-            extent=extent
-        )
-
-        paste(img, x, y, background)
+        layout.paste(i, img)
 
     path = image_path(album_dir, 'wallpaper')
     background.save(path)
