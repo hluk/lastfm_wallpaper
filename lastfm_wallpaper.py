@@ -11,10 +11,10 @@ import logging
 import math
 import os
 import pylast
+import random
 import requests
 import shutil
 
-from random import randrange
 from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps
 
 try:
@@ -92,7 +92,7 @@ class Layout:
 
         count_to_add = cell + 1 - len(self.angles)
         self.angles.extend(
-            randrange(self.angle_range.x, self.angle_range.y)
+            random.randrange(self.angle_range.x, self.angle_range.y)
             for _ in range(count_to_add)
         )
 
@@ -273,6 +273,10 @@ def parse_args():
         '--cover-glow', default=40, type=int,
         help='cover glow amount')
 
+    parser.add_argument(
+        '--random-seed', default=-1, type=int,
+        help='seed number to initialize random number generator; random if negative')
+
     return parser.parse_args()
 
 
@@ -363,8 +367,19 @@ def spiral(rows, columns):
         y += dy
 
 
+def init_random_seed(seed):
+    if seed < 0:
+        return
+
+    random.seed(a=seed, version=2)
+    if numpy:
+        numpy.random.seed(seed)
+
+
 def main():
     args = parse_args()
+
+    init_random_seed(args.random_seed)
 
     width, height = args.size.x, args.size.y
     album_dir = args.dir
@@ -397,7 +412,7 @@ def main():
     loader = CoverLoader(album_dir)
 
     if args.base == 'random':
-        i = randrange(count)
+        i = random.randrange(count)
         path = loader.cover_path(i)
     elif args.base == 'top':
         path = loader.cover_path(0)
