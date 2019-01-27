@@ -99,6 +99,24 @@ class Layout:
         return self.angles[cell]
 
 
+class CoverLoader:
+    def __init__(self, album_dir):
+        self.album_dir = album_dir
+        self.cache = {}
+
+    def cover(self, index, extent):
+        path = self.cover_path(index)
+        img = self.cache.get(path)
+        if not img:
+            img = Image.open(path, 'r')
+            img = img.convert('RGBA')
+            self.cache[path] = img
+        return img.resize((extent, extent), resample=Image.BICUBIC)
+
+    def cover_path(self, index):
+        return image_path(self.album_dir, index + 1)
+
+
 def parse_config(config_path, server):
     config = configparser.ConfigParser(defaults={
         'URL': DEFAULT_API_URL,
@@ -349,11 +367,13 @@ def main():
     scale = max(1, int(width / DEFAULT_WIDTH))
     base_blur = args.base_blur * scale
 
+    loader = CoverLoader(album_dir)
+
     if args.base == 'random':
-        i = randrange(1, count)
-        path = image_path(album_dir, i)
+        i = randrange(count)
+        path = loader.cover_path(i)
     elif args.base == 'top':
-        path = image_path(album_dir, 1)
+        path = loader.cover_path(0)
     else:
         path = args.base
     background = background_image(path, width, height, blur=base_blur)
@@ -383,11 +403,8 @@ def main():
 
     if args.cover_glow > 0:
         for i in reversed(range(count)):
-            path = image_path(album_dir, i + 1)
-            img = Image.open(path, 'r')
-            img = img.convert('RGBA')
             extent1 = int(extent * (100 + args.cover_glow) / 100)
-            img = img.resize((extent1, extent1))
+            img = loader.cover(i, extent1)
             img = colorize(img, 200)
             img = brighter(img, 200)
             img = img.filter(ImageFilter.GaussianBlur(radius=extent // 10))
@@ -404,9 +421,8 @@ def main():
             layout.paste(i, img)
 
     for i in reversed(range(count)):
-        path = image_path(album_dir, i + 1)
-        img = Image.open(path, 'r')
-        img = img.resize((extent - 2 * border, extent - 2 * border), resample=Image.BICUBIC)
+        extent1 = extent - 2 * border
+        img = loader.cover(i, extent1)
         img = ImageOps.expand(img, border, args.border_color)
 
         img = add_noise(img, args.cover_noise)
