@@ -230,7 +230,7 @@ def parse_args():
 
     parser.add_argument(
         '--border-color', default='black',
-        help='border color')
+        help='border color; "auto" to auto-detect based on cover')
     parser.add_argument(
         '--border-size', default=10, type=int,
         help='border size')
@@ -453,7 +453,15 @@ def main():
     for i in reversed(range(count)):
         extent1 = extent - 2 * border
         img = loader.cover(i, extent1)
-        img = ImageOps.expand(img, border, args.border_color)
+
+        border_color = args.border_color
+        if border_color == 'auto':
+            img1 = img.resize((1, 1), resample=Image.BILINEAR)
+            img1 = colorize(img1, 200)
+            img1 = brighter(img1, 50)
+            border_color = img1.getpixel((0, 0))
+
+        img = ImageOps.expand(img, border, border_color)
 
         img = add_noise(img, args.cover_noise)
         img = brighter(img, args.cover_brightness)
