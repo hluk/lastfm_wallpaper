@@ -309,6 +309,11 @@ def colorize(img, colorize_percentage):
 
 
 def rotate(img, angle):
+    if (angle % 360) == 0:
+        return img
+
+    # Expand first to have smoother edges.
+    img = ImageOps.expand(img, 4, fill=0)
     return img.rotate(angle, resample=Image.BICUBIC, expand=True, fillcolor=(0, 0, 0, 0))
 
 
