@@ -37,9 +37,9 @@ API_GET_TOKEN = 'auth.gettoken'
 API_TOP_ALBUMS = 'user.gettopalbums'
 
 MISSING_CONFIG_ERROR = """\
-You have to have your own unique two values for API_KEY and API_SECRET
-Obtain yours from https://www.last.fm/api/account/create for Last.fm
-and save them in ~/.config/lastfm_wallpaper.ini in following format.
+You have to have your own unique two values for API_KEY and API_SECRET Obtain
+yours from https://www.last.fm/api/account/create and save them in following
+format in file "{}".
 
     [{}]
     api_key = xxxxxxxxxxxxxxx
@@ -122,7 +122,7 @@ def parse_config(config_path, server):
     try:
         return config[server]
     except KeyError:
-        logger.error(MISSING_CONFIG_ERROR.format(server))
+        logger.error(MISSING_CONFIG_ERROR.format(config_path, server))
         exit(1)
 
 
