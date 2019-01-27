@@ -75,12 +75,10 @@ class Layout:
         self.padding_x = (width - extent * columns) // (columns + 1)
         self.padding_y = (height - extent * rows) // (rows + 1)
 
-        self.positions = list(spiral(rows, columns))
-
     def paste(self, cell, img, offset=(0, 0)):
         img = rotate(img, self.angle(cell))
 
-        row, column = self.positions[cell]
+        row, column = divmod(cell, self.columns)
         x = column * self.extent + self.extent // 2 + (column + 1) * self.padding_x
         y = row * self.extent + self.extent // 2 + (row + 1) * self.padding_y
         paste(img, x + offset[0], y + offset[1], self.background)
@@ -368,20 +366,6 @@ def paste(img, x, y, background):
             src[j] = -dest[j]
             dest[j] = 0
     background.alpha_composite(img, dest=tuple(dest), source=tuple(src))
-
-
-def spiral(rows, columns):
-    X, Y = columns, rows
-    x = y = 0
-    dx = 0
-    dy = -1
-    for i in range(max(X, Y)**2):
-        if (-X/2 < x <= X/2) and (-Y/2 < y <= Y/2):
-            yield ((Y - 1) // 2 - y, x + (X - 1) // 2)
-        if x == y or (x < 0 and x == -y) or (x > 0 and x == 1 - y):
-            dx, dy = -dy, dx
-        x += dx
-        y += dy
 
 
 def init_random_seed(seed):
