@@ -299,8 +299,11 @@ def add_noise(img, noise_percentage):
         logger.warning('To add noise to image, install numpy')
         return img
 
-    noise_data = numpy.random.normal(0, 255 ** 3, (img.height, img.width))
-    noise_image = Image.fromarray(noise_data, mode='RGB').convert('RGBA')
+    noise = numpy.random.normal(0, 1, (img.height, img.width, 3))
+    a = numpy.amin(noise)
+    b = numpy.amax(noise)
+    noise = (255 * (noise - a) / (b - a)).astype(numpy.uint8)
+    noise_image = Image.fromarray(noise, mode='RGB').convert('RGBA')
     return ImageChops.blend(img, noise_image, noise_percentage / 100)
 
 
