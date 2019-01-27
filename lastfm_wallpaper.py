@@ -15,7 +15,7 @@ import random
 import requests
 import shutil
 
-from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps, PngImagePlugin
 
 try:
     import numpy
@@ -129,6 +129,13 @@ def parse_config(config_path, server):
         exit(1)
 
 
+def image_info(**args):
+    info = PngImagePlugin.PngInfo()
+    for k, v in args.items():
+        info.add_itxt(k, v)
+    return info
+
+
 def image_path(image_dir, base_name):
     return os.path.join(image_dir, '{}.png'.format(base_name))
 
@@ -136,7 +143,7 @@ def image_path(image_dir, base_name):
 def download_cover(album, path, cache_dir):
     album_id = '{} //// {}'.format(album.artist, album.title)
     cache_base_name = hashlib.sha256(album_id.encode('utf-8')).hexdigest()
-    cached_path = os.path.join(cache_dir, cache_base_name)
+    cached_path = os.path.join(cache_dir, cache_base_name) + '.png'
 
     if os.path.isfile(cached_path):
         logger.info('Using cover: %s', album)
@@ -152,8 +159,10 @@ def download_cover(album, path, cache_dir):
 
         logger.info('Downloading cover: %s', album)
         r = requests.get(cover_url, stream=True)
-        with open(cached_path, 'wb') as f:
-            shutil.copyfileobj(r.raw, f)
+        r.raw.decode_content = True
+        img = Image.open(r.raw)
+        info = image_info(artist=album.artist.name, album=album.title)
+        img.save(cached_path, pnginfo=info)
 
     shutil.copyfile(cached_path, path)
     return True
@@ -453,9 +462,17 @@ def main():
             img = glow(img, extent // 10)
             layout.paste(i, img)
 
+    albums = []
+
     for i in reversed(range(count)):
         extent1 = extent - 2 * border
         img = loader.cover(i, extent1)
+        artist = img.info.get('artist')
+        album = img.info.get('album')
+        if artist and album:
+            if args.cached:
+                logger.info('Cover: %s - %s', artist, album)
+            albums.insert(0, '{} - {}'.format(artist, album))
 
         border_color = args.border_color
         if border_color == 'auto':
@@ -473,7 +490,8 @@ def main():
         layout.paste(i, img)
 
     path = image_path(album_dir, 'wallpaper')
-    background.save(path)
+    info = image_info(albums='\n'.join(albums))
+    background.save(path, pnginfo=info)
     print('Wallpaper saved: {}'.format(path))
 
 
