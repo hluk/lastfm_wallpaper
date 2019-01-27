@@ -276,7 +276,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def background_image(path, width, height, blur):
+def background_image(path, width, height, blur_radius):
     background = Image.open(path, 'r')
     background = background.convert('RGBA')
     extent = math.floor(max(width, height))
@@ -284,7 +284,7 @@ def background_image(path, width, height, blur):
     y = (extent - height) // 2
     background = background.resize((extent, extent), resample=Image.BICUBIC)
     background = background.crop((x, y, x + width, y + height))
-    return background.filter(ImageFilter.GaussianBlur(radius=blur))
+    return blur(background, blur_radius)
 
 
 def add_noise(img, noise_percentage):
@@ -310,6 +310,10 @@ def colorize(img, colorize_percentage):
 
 def rotate(img, angle):
     return img.rotate(angle, resample=Image.BICUBIC, expand=True, fillcolor=(0, 0, 0, 0))
+
+
+def blur(img, radius):
+    return img.filter(ImageFilter.GaussianBlur(radius=radius))
 
 
 def paste(img, x, y, background):
@@ -376,7 +380,7 @@ def main():
         path = loader.cover_path(0)
     else:
         path = args.base
-    background = background_image(path, width, height, blur=base_blur)
+    background = background_image(path, width, height, blur_radius=base_blur)
 
     background = add_noise(background, args.base_noise)
     background = brighter(background, args.base_brightness)
@@ -393,7 +397,7 @@ def main():
     shadow_pos = (shadow_size - extent) // 2
     shadow.paste(args.shadow_color, (shadow_pos, shadow_pos, extent + shadow_pos, extent + shadow_pos))
     shadow_blur = args.shadow_blur * scale
-    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=shadow_blur))
+    shadow = blur(shadow, shadow_blur)
     shadow_offset = (args.shadow_offset.x * scale, args.shadow_offset.y * scale)
 
     border = args.border_size * scale
@@ -407,7 +411,7 @@ def main():
             img = loader.cover(i, extent1)
             img = colorize(img, 200)
             img = brighter(img, 200)
-            img = img.filter(ImageFilter.GaussianBlur(radius=extent // 10))
+            img = blur(img, extent // 10)
 
             extent2 = int(extent1 * 0.6)
             mask = img.convert('L')
@@ -415,7 +419,7 @@ def main():
             d = (extent1 - extent2) // 2
             mask = ImageOps.expand(mask, d, 'black')
             mask = mask.resize((extent1, extent1))
-            mask = mask.filter(ImageFilter.GaussianBlur(radius=extent // 10))
+            mask = blur(mask, extent // 10)
             img.putalpha(mask)
 
             layout.paste(i, img)
