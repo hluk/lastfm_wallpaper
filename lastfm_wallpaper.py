@@ -165,17 +165,20 @@ def download_cover(album, path, cache_dir):
     return True
 
 
-def download_covers(api_key, api_secret, user, album_dir, from_date, to_date, max_count):
-    cache_dir = os.path.join(album_dir, '.cache')
-    os.makedirs(cache_dir, exist_ok=True)
-
+def lastfm_user(api_key, api_secret, user):
     network = pylast.LastFMNetwork(
         api_key=api_key,
         api_secret=api_secret,
         username=user
     )
 
-    user = network.get_user(user)
+    return network.get_user(user)
+
+
+def download_covers(user, album_dir, from_date, to_date, max_count):
+    cache_dir = os.path.join(album_dir, '.cache')
+    os.makedirs(cache_dir, exist_ok=True)
+
     top_items = user.get_weekly_album_charts(
         from_date=from_date.strftime('%s'),
         to_date=to_date.strftime('%s'))
@@ -397,12 +400,19 @@ def print_info(album_dir):
         exit(1)
 
     img = Image.open(path, 'r')
-    albums = img.info.get('albums')
-    if not albums:
-        logger.error("No album information in wallpaper")
-        exit(1)
 
-    print(albums)
+    info = img.info
+    albums = info.pop('albums', None)
+
+    info['image'] = path
+    info['resolution'] = '{}x{}'.format(img.width, img.height)
+
+    for k, v in sorted(info.items()):
+        print('# {}: {}'.format(k, v))
+
+    if albums:
+        print('# albums:\n\n{}'.format(albums))
+
     exit(0)
 
 
@@ -421,15 +431,22 @@ def main():
 
     config = parse_config(args.config, args.server)
 
+    user = lastfm_user(
+        api_key=config['api_key'],
+        api_secret=config['api_secret'],
+        user=config['user']
+    )
+
+    image_info_dict = {}
+
     if args.cached:
         count = max_count
     else:
         to_date = datetime.datetime.now()
         from_date = to_date - datetime.timedelta(days=args.days) - datetime.timedelta(hours=args.hours)
+        image_info_dict['dates'] = '{}..{}'.format(from_date.date(), to_date.date())
         count = download_covers(
-            api_key=config['api_key'],
-            api_secret=config['api_secret'],
-            user=config['user'],
+            user=user,
             album_dir=album_dir,
             from_date=from_date,
             to_date=to_date,
@@ -511,8 +528,11 @@ def main():
 
         layout.paste(i, img)
 
+    image_info_dict['albums'] = '\n'.join(albums)
+    image_info_dict['url'] = user.get_url()
+
     path = image_path(album_dir, 'wallpaper')
-    info = image_info(albums='\n'.join(albums))
+    info = image_info(**image_info_dict)
     background.save(path, pnginfo=info)
     print('Wallpaper saved: {}'.format(path))
 
