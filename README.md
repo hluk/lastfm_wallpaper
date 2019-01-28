@@ -47,6 +47,12 @@ Show fewer covers (six in two rows):
 ./lastfm_wallpaper.py --rows 2 --count 6
 ```
 
+Album chart from year ago:
+
+```bash
+./lastfm_wallpaper.py --days-ago 365
+```
+
 List available command line switches:
 
 ```bash

@@ -253,6 +253,9 @@ def parse_args():
     parser.add_argument(
         '--hours', default=0, type=int,
         help='number of additional hours to consider')
+    parser.add_argument(
+        '--days-ago', default=0, type=int,
+        help='consider end date X days ago instead of today')
 
     parser.add_argument(
         '--base', default='random',
@@ -426,7 +429,7 @@ def main():
     if args.cached:
         count = max_count
     else:
-        to_date = datetime.datetime.now()
+        to_date = datetime.datetime.now() - datetime.timedelta(days=args.days_ago)
         from_date = to_date - datetime.timedelta(days=args.days) - datetime.timedelta(hours=args.hours)
         image_info_dict['dates'] = '{}..{}'.format(from_date.date(), to_date.date())
         count = download_covers(
