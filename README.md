@@ -1,6 +1,8 @@
 Python script that creates wallpaper with covers from personal top chart on
 Last.fm.
 
+![](preview.png?raw=true)
+
 ## Dependencies
 
 The script requires Python 3.
