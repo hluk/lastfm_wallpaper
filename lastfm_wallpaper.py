@@ -265,7 +265,7 @@ def parse_args():
         '--base-brightness', default=80, type=int,
         help='base image brightness percentage')
     parser.add_argument(
-        '--base-noise', default=30, type=int,
+        '--base-noise', default=10, type=int,
         help='base image noise percentage')
     parser.add_argument(
         '--base-color', default=50, type=int,
@@ -275,7 +275,7 @@ def parse_args():
         '--cover-brightness', default=100, type=int,
         help='cover image brightness percentage')
     parser.add_argument(
-        '--cover-noise', default=10, type=int,
+        '--cover-noise', default=5, type=int,
         help='cover image noise percentage')
     parser.add_argument(
         '--cover-color', default=100, type=int,
@@ -306,10 +306,7 @@ def add_noise(img, noise_percentage):
     if noise_percentage <= 0:
         return img
 
-    noise = numpy.random.normal(0, 1, (img.height, img.width, 3))
-    a = numpy.amin(noise)
-    b = numpy.amax(noise)
-    noise = (255 * (noise - a) / (b - a)).astype(numpy.uint8)
+    noise = numpy.random.randint(0, 255, size=(img.height, img.width, 3), dtype=numpy.uint8)
     noise_image = Image.fromarray(noise, mode='RGB').convert('RGBA')
     return ImageChops.blend(img, noise_image, noise_percentage / 100)
 
