@@ -9,6 +9,7 @@ import datetime
 import hashlib
 import logging
 import math
+import numpy
 import os
 import pylast
 import random
@@ -16,11 +17,6 @@ import requests
 import shutil
 
 from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps, PngImagePlugin
-
-try:
-    import numpy
-except ImportError:
-    pass
 
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser('~/.config/lastfm_wallpaper.ini')
 DEFAULT_SERVER_NAME = 'default'
@@ -310,10 +306,6 @@ def add_noise(img, noise_percentage):
     if noise_percentage <= 0:
         return img
 
-    if not numpy:
-        logger.warning('To add noise to image, install numpy')
-        return img
-
     noise = numpy.random.normal(0, 1, (img.height, img.width, 3))
     a = numpy.amin(noise)
     b = numpy.amax(noise)
@@ -376,8 +368,7 @@ def init_random_seed(seed):
         return
 
     random.seed(a=seed, version=2)
-    if numpy:
-        numpy.random.seed(seed)
+    numpy.random.seed(seed)
 
 
 def print_info(album_dir):
