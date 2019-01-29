@@ -350,6 +350,13 @@ def glow(img, amount):
     return img
 
 
+def auto_border_color(img):
+    img = img.resize((1, 1), resample=Image.BILINEAR)
+    img = colorize(img, 200)
+    img = brighter(img, 30)
+    return img.getpixel((0, 0))
+
+
 def paste(img, x, y, background):
     dest = [x - img.width // 2, y - img.height // 2]
     src = [0, 0]
@@ -488,10 +495,7 @@ def main():
 
         border_color = args.border_color
         if border_color == 'auto':
-            img1 = img.resize((1, 1), resample=Image.BILINEAR)
-            img1 = colorize(img1, 200)
-            img1 = brighter(img1, 30)
-            border_color = img1.getpixel((0, 0))
+            border_color = auto_border_color(img)
 
         img = ImageOps.expand(img, border, border_color)
 
