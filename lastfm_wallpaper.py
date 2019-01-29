@@ -490,7 +490,7 @@ def main():
         if border_color == 'auto':
             img1 = img.resize((1, 1), resample=Image.BILINEAR)
             img1 = colorize(img1, 200)
-            img1 = brighter(img1, 50)
+            img1 = brighter(img1, 30)
             border_color = img1.getpixel((0, 0))
 
         img = ImageOps.expand(img, border, border_color)
