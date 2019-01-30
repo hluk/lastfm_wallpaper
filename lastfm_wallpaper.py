@@ -47,6 +47,10 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
 
+class DownloadCoverError(RuntimeError):
+    pass
+
+
 class TupleArgument:
     def __init__(self, argument, separator=','):
         self.x, self.y = map(int, argument.split(separator))
@@ -131,6 +135,30 @@ def image_path(image_dir, base_name):
     return os.path.join(image_dir, '{}.png'.format(base_name))
 
 
+def cover_for_album(album):
+    try:
+        cover_url = album.get_cover_image(pylast.COVER_MEGA)
+        if not cover_url:
+            raise DownloadCoverError('Cover URL not available')
+    except pylast.WSError as e:
+        raise DownloadCoverError('Failed to get cover URL: {}'.format(e))
+
+    return cover_url
+
+
+def download_raw(url):
+    try:
+        r = requests.get(url, stream=True)
+    except requests.exceptions.RequestException as e:
+        raise DownloadCoverError('Failed to download cover: {}'.format(e))
+
+    if r.status_code != 200:
+        raise DownloadCoverError('Failed to download cover: {}'.format(r.text))
+
+    r.raw.decode_content = True
+    return r.raw
+
+
 def download_cover(album, path, cache_dir):
     album_id = '{} //// {}'.format(album.artist, album.title)
     cache_base_name = hashlib.sha256(album_id.encode('utf-8')).hexdigest()
@@ -139,24 +167,14 @@ def download_cover(album, path, cache_dir):
     if os.path.isfile(cached_path):
         logger.info('Using cover: %s', album)
     else:
-        try:
-            cover_url = album.get_cover_image(pylast.COVER_MEGA)
-            if not cover_url:
-                logger.warning('Missing cover: %s', album)
-                return False
-        except pylast.WSError as e:
-            logger.warning('Missing cover: %s (%s)', album, e)
-            return False
-
         logger.info('Downloading cover: %s', album)
-        r = requests.get(cover_url, stream=True)
-        r.raw.decode_content = True
-        img = Image.open(r.raw)
+        cover_url = cover_for_album(album)
+        raw = download_raw(cover_url)
+        img = Image.open(raw)
         info = image_info(artist=album.artist.name, album=album.title)
         img.save(cached_path, pnginfo=info)
 
     shutil.copyfile(cached_path, path)
-    return True
 
 
 def lastfm_user(api_key, api_secret, user):
@@ -180,7 +198,11 @@ def download_covers(user, album_dir, from_date, to_date, max_count):
     for top_item in top_items:
         album = top_item.item
         path = image_path(album_dir, count + 1)
-        if download_cover(album, path, cache_dir):
+        try:
+            download_cover(album, path, cache_dir)
+        except DownloadCoverError as e:
+            logger.warning(e)
+        else:
             count += 1
             if count == max_count:
                 break
