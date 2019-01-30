@@ -189,6 +189,7 @@ def cache_path_for_album(album, cache_dir):
 
 def save_cover(album, raw_or_path, path):
     img = Image.open(raw_or_path)
+    img = img.convert('RGBA')
     info = image_info(artist=album.artist.name, album=album.title)
     img.save(path, pnginfo=info)
 
