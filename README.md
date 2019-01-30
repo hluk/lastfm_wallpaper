@@ -62,3 +62,18 @@ List available command line switches:
 ```bash
 ./lastfm_wallpaper.py --help
 ```
+
+To avoid specifying the arguments repeatedly, you can set the options
+in configuration file (the default configuration file path is printed with
+`--help`). E.g. on Linux `~/.config/lastfm_wallpaper.ini` can contain:
+
+```ini
+[default]
+api_key = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+api_secret = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+user = lastfm_login
+size = 3840x2160
+days = 90
+days-ago = 1
+search = ~/Music/{artist} - {album}/cover.*
+```
