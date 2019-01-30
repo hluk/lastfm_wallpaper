@@ -6,6 +6,7 @@ Creates wallpaper with personal top albums from Last.fm.
 import argparse
 import configparser
 import datetime
+import glob
 import hashlib
 import logging
 import math
@@ -42,6 +43,11 @@ format in file "{}".
     api_secret = xxxxxxxxxxxxxxx
     user = login_name
 """
+
+SEARCH_PATHS_EXAMPLE = os.path.pathsep.join((
+    os.path.join('~', 'Music', '{artist} - {album}', 'cover.*'),
+    os.path.join('~', 'Music', '*', '{artist} - {album}', 'cover.*'),
+))
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -159,22 +165,22 @@ def download_raw(url):
     return r.raw
 
 
-def download_cover(album, path, cache_dir):
+def cache_path_for_album(album, cache_dir):
     album_id = '{} //// {}'.format(album.artist, album.title)
     cache_base_name = hashlib.sha256(album_id.encode('utf-8')).hexdigest()
-    cached_path = os.path.join(cache_dir, cache_base_name) + '.png'
+    return os.path.join(cache_dir, cache_base_name) + '.png'
 
-    if os.path.isfile(cached_path):
-        logger.info('Using cover: %s', album)
-    else:
-        logger.info('Downloading cover: %s', album)
-        cover_url = cover_for_album(album)
-        raw = download_raw(cover_url)
-        img = Image.open(raw)
-        info = image_info(artist=album.artist.name, album=album.title)
-        img.save(cached_path, pnginfo=info)
 
-    shutil.copyfile(cached_path, path)
+def save_cover(album, raw_or_path, path):
+    img = Image.open(raw_or_path)
+    info = image_info(artist=album.artist.name, album=album.title)
+    img.save(path, pnginfo=info)
+
+
+def download_cover(album, cache_path):
+    cover_url = cover_for_album(album)
+    raw = download_raw(cover_url)
+    save_cover(album, raw, cache_path)
 
 
 def lastfm_user(api_key, api_secret, user):
@@ -187,22 +193,51 @@ def lastfm_user(api_key, api_secret, user):
     return network.get_user(user)
 
 
-def download_covers(user, album_dir, from_date, to_date, max_count):
+def find_album(album, search):
+    for pattern in search:
+        path = pattern.format(artist=album.artist, album=album.title)
+        paths = glob.iglob(path)
+        try:
+            return next(paths)
+        except StopIteration:
+            pass
+
+
+def get_cover_for_album(album, path, cache_path, search):
+    if os.path.isfile(cache_path):
+        logger.info('Album "%s": Using cached cover', album)
+    else:
+        found = find_album(album, search)
+        if found:
+            logger.info('Album "%s": Getting cover from "%s"', album, found)
+            save_cover(album, found, cache_path)
+        else:
+            try:
+                logger.info('Album "%s": Downloading cover')
+                download_cover(album, cache_path)
+            except DownloadCoverError as e:
+                logger.warning(e)
+                return False
+
+    shutil.copyfile(cache_path, path)
+    return True
+
+
+def download_covers(user, album_dir, from_date, to_date, max_count, search):
     cache_dir = os.path.join(album_dir, '.cache')
     os.makedirs(cache_dir, exist_ok=True)
 
     top_items = user.get_weekly_album_charts(
         from_date=from_date.strftime('%s'),
         to_date=to_date.strftime('%s'))
+
     count = 0
+
     for top_item in top_items:
         album = top_item.item
         path = image_path(album_dir, count + 1)
-        try:
-            download_cover(album, path, cache_dir)
-        except DownloadCoverError as e:
-            logger.warning(e)
-        else:
+        cache_path = cache_path_for_album(album, cache_dir)
+        if get_cover_for_album(album, path=path, cache_path=cache_path, search=search):
             count += 1
             if count == max_count:
                 break
@@ -243,6 +278,9 @@ def parse_args():
     parser.add_argument(
         '--cached', action='store_true',
         help='use already downloaded covers')
+    parser.add_argument(
+        '--search', default='',
+        help='album search patterns (e.g. "{}")'.format(SEARCH_PATHS_EXAMPLE))
 
     parser.add_argument(
         '--angle-range', default='0,0', type=TupleArgument,
@@ -443,6 +481,11 @@ def main():
 
     image_info_dict = {}
 
+    search = [
+        os.path.expanduser(path)
+        for path in args.search.split(os.path.pathsep)
+    ]
+
     if args.cached:
         count = max_count
     else:
@@ -454,7 +497,8 @@ def main():
             album_dir=album_dir,
             from_date=from_date,
             to_date=to_date,
-            max_count=max_count
+            max_count=max_count,
+            search=search
         )
 
     if count <= 0:
