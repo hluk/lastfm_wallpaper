@@ -57,32 +57,6 @@ class DownloadCoverError(RuntimeError):
     pass
 
 
-class ArgumentNamespace:
-    def __init__(self, config_path, server):
-        config = configparser.ConfigParser()
-        config.read(config_path)
-
-        try:
-            self._config = config[server]
-        except KeyError:
-            logger.error(MISSING_CONFIG_ERROR.format(config_path, server))
-            exit(1)
-
-    def __setattr__(self, name, value):
-        super().__setattr__(name, value)
-
-    def __getattr__(self, name):
-        try:
-            return super().__getattr__(name)
-        except AttributeError:
-            value = self._config.get(name)
-            if value is None:
-                value = self._config.get(name.replace('_', '-'))
-                if value is None:
-                    raise
-            return value
-
-
 class TupleArgument:
     def __init__(self, argument, separator=','):
         self.x, self.y = map(int, argument.split(separator))
@@ -144,6 +118,16 @@ class CoverLoader:
 
     def cover_path(self, index):
         return image_path(self.album_dir, index + 1)
+
+
+def parse_config(config_path, server):
+    config = configparser.ConfigParser()
+    config.read(config_path)
+    try:
+        return config[server]
+    except KeyError:
+        logger.error(MISSING_CONFIG_ERROR.format(config_path, server))
+        exit(1)
 
 
 def image_info(**args):
@@ -366,8 +350,10 @@ def parse_args():
         help='seed number to initialize random number generator; random if negative')
 
     args = parser.parse_args()
-    namespace = ArgumentNamespace(args.config, args.server)
-    return parser.parse_args(namespace=namespace)
+    config = parse_config(args.config, args.server)
+    parser.set_defaults(**config)
+
+    return parser.parse_args()
 
 
 def background_image(path, width, height, blur_radius):
