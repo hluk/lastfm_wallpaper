@@ -214,7 +214,7 @@ def get_cover_for_album(album, path, cache_path, search):
             save_cover(album, found, cache_path)
         else:
             try:
-                logger.info('Album "%s": Downloading cover')
+                logger.info('Album "%s": Downloading cover', album)
                 download_cover(album, cache_path)
             except DownloadCoverError as e:
                 logger.warning(e)
