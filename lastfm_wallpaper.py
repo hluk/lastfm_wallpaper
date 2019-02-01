@@ -351,6 +351,10 @@ def parse_args():
 
     args = parser.parse_args()
     config = parse_config(args.config, args.server)
+    config = {
+        key.lower().replace('-', '_'): value
+        for key, value in config.items()
+    }
     parser.set_defaults(**config)
 
     return parser.parse_args()
