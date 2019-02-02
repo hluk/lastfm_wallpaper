@@ -318,7 +318,7 @@ def parse_args():
         '--base', default='random',
         help=('base image file'
               '; "random" to pick one of the covers'
-              '; "top" to pick top album cover'))
+              '; <number> to pick the cover at given position'))
     parser.add_argument(
         '--base-blur', default=3, type=int,
         help='base image blur')
@@ -520,10 +520,14 @@ def main():
     if args.base == 'random':
         i = random.randrange(count)
         path = loader.cover_path(i)
-    elif args.base == 'top':
-        path = loader.cover_path(0)
     else:
-        path = args.base
+        try:
+            i = int(args.base) - 1
+            if i < 0:
+                i = count + i + 1
+            path = loader.cover_path(i)
+        except TypeError:
+            path = args.base
     background = background_image(path, width, height, blur_radius=base_blur)
 
     background = add_noise(background, args.base_noise)
