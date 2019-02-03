@@ -67,8 +67,17 @@ class SizeArgument(TupleArgument):
         super().__init__(size, 'x')
 
 
+class LayoutArgument:
+    def __init__(self, value):
+        if value is None:
+            self.positions = None
+        else:
+            self.positions, self.rows, self.columns = parse_layout(value)
+
+
 class Layout:
-    def __init__(self, background, rows, columns, width, height, space, angle_range):
+    def __init__(self, positions, background, rows, columns, width, height, space, angle_range):
+        self.positions = positions
         self.background = background
         self.rows = rows
         self.columns = columns
@@ -84,10 +93,16 @@ class Layout:
     def paste(self, cell, img, offset=(0, 0)):
         img = rotate(img, self.angle(cell))
 
-        row, column = divmod(cell, self.columns)
+        row, column = self.position(cell, self.columns)
         x = column * self.extent + self.extent // 2 + (column + 1) * self.padding_x
         y = row * self.extent + self.extent // 2 + (row + 1) * self.padding_y
         paste(img, x + offset[0], y + offset[1], self.background)
+
+    def position(self, cell, columns):
+        if self.positions:
+            return self.positions[cell]
+
+        return divmod(cell, columns)
 
     def angle(self, cell):
         if self.angle_range.x >= self.angle_range.y:
@@ -128,6 +143,25 @@ def parse_config(config_path, server):
     except KeyError:
         logger.error(MISSING_CONFIG_ERROR.format(config_path, server))
         exit(1)
+
+
+def parse_layout(value):
+    try:
+        positions = [
+            [int(x) for x in position.split(',')]
+            for position in value.split(' ')
+        ]
+        min_x = min(positions, key=lambda p: p[0])[0]
+        max_x = max(positions, key=lambda p: p[0])[0]
+        min_y = min(positions, key=lambda p: p[1])[1]
+        max_y = max(positions, key=lambda p: p[1])[1]
+        rows = max_x - min_x + 1
+        columns = max_y - min_y + 1
+        positions = [(x - min_x, y - min_y) for x, y in positions]
+        return positions, rows, columns
+    except Exception as e:
+        logger.exception('Failed to parse positions argument: %s', e)
+        raise
 
 
 def image_info(**args):
@@ -349,6 +383,12 @@ def parse_args():
         '--random-seed', default=-1, type=int,
         help='seed number to initialize random number generator; random if negative')
 
+    parser.add_argument(
+        '--layout', default=None, type=LayoutArgument,
+        help=('cover positions and layout'
+              '; space separated list of "row,column" values')
+    )
+
     args = parser.parse_args()
     config = parse_config(args.config, args.server)
     config = {
@@ -480,6 +520,18 @@ def main():
     width, height = args.size.x, args.size.y
     max_count = args.count
 
+    if args.layout:
+        positions = args.layout.positions
+        rows = args.layout.rows
+        columns = args.layout.columns
+        if len(positions) < max_count:
+            logger.error("Expected %s positions but %s specified", max_count, len(positions))
+            exit(1)
+    else:
+        positions = None
+        rows = args.rows
+        columns = None
+
     user = lastfm_user(
         api_key=args.api_key,
         api_secret=args.api_secret,
@@ -534,10 +586,10 @@ def main():
     background = brighter(background, args.base_brightness)
     background = colorize(background, args.base_color)
 
-    rows = args.rows
-    columns = math.ceil(count / rows)
+    if not columns:
+        columns = math.ceil(count / rows)
     space = args.space * scale
-    layout = Layout(background, rows, columns, width, height, space, args.angle_range)
+    layout = Layout(positions, background, rows, columns, width, height, space, args.angle_range)
     extent = layout.extent
 
     shadow_size = int(extent * 1.2)
