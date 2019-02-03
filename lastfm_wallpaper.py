@@ -62,7 +62,7 @@ class TupleArgument:
         self.x, self.y = map(int, argument.split(separator))
 
 
-class Size(TupleArgument):
+class SizeArgument(TupleArgument):
     def __init__(self, size):
         super().__init__(size, 'x')
 
@@ -265,7 +265,7 @@ def parse_args():
         '--dir', default=DEFAULT_ALBUM_COVER_DIR,
         help='directory to store album covers')
     parser.add_argument(
-        '--size', default=DEFAULT_SIZE, type=Size,
+        '--size', default=DEFAULT_SIZE, type=SizeArgument,
         help='wallpaper size')
     parser.add_argument(
         '--count', default=DEFAULT_MAX_COVER_COUNT, type=int,
