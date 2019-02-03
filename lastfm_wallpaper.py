@@ -23,7 +23,6 @@ DEFAULT_CONFIG_FILE_PATH = os.path.expanduser('~/.config/lastfm_wallpaper.ini')
 DEFAULT_SERVER_NAME = 'default'
 DEFAULT_ALBUM_COVER_DIR = os.path.expanduser('~/.cache/lastfm_wallpaper')
 DEFAULT_MAX_COVER_COUNT = 12
-DEFAULT_ROW_COUNT = 3
 DEFAULT_SPACE = 50
 
 DEFAULT_WIDTH = 1920
@@ -305,8 +304,11 @@ def parse_args():
         '--count', default=DEFAULT_MAX_COVER_COUNT, type=int,
         help='maximum cover count')
     parser.add_argument(
-        '--rows', default=DEFAULT_ROW_COUNT, type=int,
-        help='number of rows')
+        '--rows', default=-1, type=int,
+        help='number of rows; -1 to deduce')
+    parser.add_argument(
+        '--columns', default=-1, type=int,
+        help='number of columns; -1 to deduce')
     parser.add_argument(
         '--space', default=DEFAULT_SPACE, type=int,
         help='space between items')
@@ -520,17 +522,20 @@ def main():
     width, height = args.size.x, args.size.y
     max_count = args.count
 
+    rows = args.rows
+    columns = args.columns
+
     if args.layout:
         positions = args.layout.positions
-        rows = args.layout.rows
-        columns = args.layout.columns
         if len(positions) < max_count:
             logger.error("Expected %s positions but %s specified", max_count, len(positions))
             exit(1)
+        if rows < 0:
+            rows = args.layout.rows
+        if columns < 0:
+            columns = args.layout.columns
     else:
         positions = None
-        rows = args.rows
-        columns = None
 
     user = lastfm_user(
         api_key=args.api_key,
@@ -563,6 +568,21 @@ def main():
     if count <= 0:
         logger.error("No albums in given time range")
         exit(1)
+
+    if rows < 0 and columns < 0:
+        x = width / height
+        _, _, rows = min(
+            [
+                count % rows,
+                abs(x - (count / rows) / rows),
+                rows
+            ]
+            for rows in range(1, count + 1)
+        )
+    if rows < 0:
+        rows = math.ceil(count / columns)
+    if columns < 0:
+        columns = math.ceil(count / rows)
 
     scale = max(1, int(width / DEFAULT_WIDTH))
     base_blur = args.base_blur * scale
