@@ -227,9 +227,19 @@ def lastfm_user(api_key, api_secret, user):
     return network.get_user(user)
 
 
+def to_pattern(text):
+    case_insensitive = ''.join(
+        '[{}{}]'.format(c.lower(), c.upper()) if c.isalpha() else c
+        for c in str(text)
+    )
+    return '*{}*'.format(case_insensitive)
+
+
 def find_album(album, search):
     for pattern in search:
-        path = pattern.format(artist=album.artist, album=album.title)
+        artist = to_pattern(album.artist)
+        album_title = to_pattern(album.title)
+        path = pattern.format(artist=artist, album=album_title)
         paths = glob.iglob(path)
         try:
             return next(paths)
