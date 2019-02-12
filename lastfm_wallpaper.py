@@ -17,7 +17,15 @@ import random
 import requests
 import shutil
 
-from PIL import Image, ImageChops, ImageEnhance, ImageFilter, ImageOps, PngImagePlugin
+from PIL import (
+    Image,
+    ImageChops,
+    ImageEnhance,
+    ImageFilter,
+    ImageMath,
+    ImageOps,
+    PngImagePlugin,
+)
 
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser('~/.config/lastfm_wallpaper.ini')
 DEFAULT_SERVER_NAME = 'default'
@@ -206,6 +214,13 @@ def cache_path_for_album(album, cache_dir):
 
 def save_cover(album, raw_or_path, path):
     img = Image.open(raw_or_path)
+
+    # Workaround for opening 16bit greyscale images.
+    # See: https://github.com/python-pillow/Pillow/issues/2574
+    if img.mode == 'I' and numpy.array(img).max() > 255:
+        logger.warning('Fixing 16bit image')
+        img = ImageMath.eval('img/256', {'img': img})
+
     img = img.convert('RGBA')
     info = image_info(artist=album.artist.name, album=album.title)
     img.save(path, pnginfo=info)
