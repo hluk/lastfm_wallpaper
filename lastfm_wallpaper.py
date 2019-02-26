@@ -187,7 +187,7 @@ def cover_for_album(album):
         cover_url = album.get_cover_image(pylast.COVER_MEGA)
         if not cover_url:
             raise DownloadCoverError('Cover URL not available')
-    except pylast.WSError as e:
+    except Exception as e:
         raise DownloadCoverError('Failed to get cover URL: {}'.format(e))
 
     return cover_url
