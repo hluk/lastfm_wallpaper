@@ -14,6 +14,7 @@ import numpy
 import os
 import pylast
 import random
+import re
 import requests
 import shutil
 
@@ -36,6 +37,8 @@ DEFAULT_SPACE = 50
 DEFAULT_WIDTH = 1920
 DEFAULT_HEIGHT = 1080
 DEFAULT_SIZE = '{}x{}'.format(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+
+MAX_TAGS_TO_MATCH = 2
 
 API_GET_TOKEN = 'auth.gettoken'
 API_TOP_ALBUMS = 'user.gettopalbums'
@@ -282,7 +285,7 @@ def get_cover_for_album(album, path, cache_path, search):
     return True
 
 
-def download_covers(user, album_dir, from_date, to_date, max_count, search):
+def download_covers(user, album_dir, from_date, to_date, max_count, search, tag_re):
     cache_dir = os.path.join(album_dir, '.cache')
     os.makedirs(cache_dir, exist_ok=True)
 
@@ -294,6 +297,13 @@ def download_covers(user, album_dir, from_date, to_date, max_count, search):
 
     for top_item in top_items:
         album = top_item.item
+
+        if tag_re:
+            tags = album.artist.get_top_tags()[:MAX_TAGS_TO_MATCH]
+            if not any(tag_re.match(tag.item.get_name()) for tag in tags):
+                logger.info('No matching tags: %s', album)
+                continue
+
         path = image_path(album_dir, count + 1)
         cache_path = cache_path_for_album(album, cache_dir)
         if get_cover_for_album(album, path=path, cache_path=cache_path, search=search):
@@ -343,6 +353,9 @@ def parse_args():
     parser.add_argument(
         '--search', default='',
         help='album search patterns (e.g. "{}")'.format(SEARCH_PATHS_EXAMPLE))
+    parser.add_argument(
+        '--tags', default='',
+        help='tag search pattern; few top tags are searched; regular expression')
 
     parser.add_argument(
         '--angle-range', default='0,0', type=TupleArgument,
@@ -581,13 +594,15 @@ def main():
         to_date = datetime.datetime.now() - datetime.timedelta(days=args.days_ago)
         from_date = to_date - datetime.timedelta(days=args.days) - datetime.timedelta(hours=args.hours)
         image_info_dict['dates'] = '{}..{}'.format(from_date.date(), to_date.date())
+        tag_re = re.compile(args.tags, re.IGNORECASE) if args.tags else None
         count = download_covers(
             user=user,
             album_dir=album_dir,
             from_date=from_date,
             to_date=to_date,
             max_count=max_count,
-            search=search
+            search=search,
+            tag_re=tag_re
         )
 
     if count <= 0:
