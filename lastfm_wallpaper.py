@@ -300,10 +300,9 @@ def download_covers(user, album_dir, from_date, to_date, max_count, search, tag_
 
         if tag_re:
             tags = album.artist.get_top_tags()
-            if max_tags > 0:
-                tags = tags[:max_tags]
-            if not any(tag_re.match(tag.item.get_name()) for tag in tags):
-                logger.info('No matching tags: %s', album)
+            if not any(tag_re.match(tag.item.get_name()) for tag in tags[:max_tags]):
+                tag_names = ', '.join(tag.item.get_name() for tag in tags)
+                logger.info('No matching tags: %s (%s)', album, tag_names)
                 continue
 
         path = image_path(album_dir, count + 1)
