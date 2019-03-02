@@ -38,7 +38,7 @@ DEFAULT_WIDTH = 1920
 DEFAULT_HEIGHT = 1080
 DEFAULT_SIZE = '{}x{}'.format(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
-MAX_TAGS_TO_MATCH = 2
+DEFAULT_MAX_TAGS_TO_MATCH = 2
 
 API_GET_TOKEN = 'auth.gettoken'
 API_TOP_ALBUMS = 'user.gettopalbums'
@@ -285,7 +285,7 @@ def get_cover_for_album(album, path, cache_path, search):
     return True
 
 
-def download_covers(user, album_dir, from_date, to_date, max_count, search, tag_re):
+def download_covers(user, album_dir, from_date, to_date, max_count, search, tag_re, max_tags):
     cache_dir = os.path.join(album_dir, '.cache')
     os.makedirs(cache_dir, exist_ok=True)
 
@@ -299,7 +299,9 @@ def download_covers(user, album_dir, from_date, to_date, max_count, search, tag_
         album = top_item.item
 
         if tag_re:
-            tags = album.artist.get_top_tags()[:MAX_TAGS_TO_MATCH]
+            tags = album.artist.get_top_tags()
+            if max_tags > 0:
+                tags = tags[:max_tags]
             if not any(tag_re.match(tag.item.get_name()) for tag in tags):
                 logger.info('No matching tags: %s', album)
                 continue
@@ -355,7 +357,10 @@ def parse_args():
         help='album search patterns (e.g. "{}")'.format(SEARCH_PATHS_EXAMPLE))
     parser.add_argument(
         '--tags', default='',
-        help='tag search pattern; few top tags are searched; regular expression')
+        help='tag search pattern; regular expression')
+    parser.add_argument(
+        '--max-tags', default=DEFAULT_MAX_TAGS_TO_MATCH, type=int,
+        help='maximum number tags to search')
 
     parser.add_argument(
         '--angle-range', default='0,0', type=TupleArgument,
@@ -602,7 +607,8 @@ def main():
             to_date=to_date,
             max_count=max_count,
             search=search,
-            tag_re=tag_re
+            tag_re=tag_re,
+            max_tags=args.max_tags,
         )
 
     if count <= 0:
