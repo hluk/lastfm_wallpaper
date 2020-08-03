@@ -40,9 +40,6 @@ DEFAULT_SIZE = '{}x{}'.format(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
 DEFAULT_MAX_TAGS_TO_MATCH = 2
 
-API_GET_TOKEN = 'auth.gettoken'
-API_TOP_ALBUMS = 'user.gettopalbums'
-
 MISSING_CONFIG_ERROR = """\
 You have to have your own unique two values for API_KEY and API_SECRET Obtain
 yours from https://www.last.fm/api/account/create and save them in following
