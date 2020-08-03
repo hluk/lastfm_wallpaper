@@ -184,7 +184,7 @@ def image_path(image_dir, base_name):
 
 def cover_for_album(album):
     try:
-        cover_url = album.get_cover_image(pylast.COVER_MEGA)
+        cover_url = album.get_cover_image(pylast.SIZE_MEGA)
         if not cover_url:
             raise DownloadCoverError('Cover URL not available')
     except Exception as e:
