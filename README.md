@@ -1,18 +1,16 @@
 Python script that creates wallpaper with covers from personal top chart on
 Last.fm.
 
-<p align="center"> 
+<p align="center">
   <img src="preview.png?raw=true" width="400"/>
 </p>
 
 ## Dependencies
 
-The script requires Python 3.
-
-It also requires installing dependencies listed in `requirements.txt`. E.g.
+The script requires Python 3.8 or greater.
 
 ```bash
-pip install -r requirements.txt
+poetry install --no-root
 ```
 
 ## Configuration
@@ -30,37 +28,37 @@ chart. If a cover image cannot be found, the album is skipped.
 Change the wallpaper size:
 
 ```bash
-./lastfm_wallpaper.py --size 3840x2160
+poetry run lastfm_wallpaper --size 3840x2160
 ```
 
 Show albums (and other info) in the last generated wallpaper:
 
 ```bash
-./lastfm_wallpaper.py --info
+poetry run lastfm_wallpaper --info
 ```
 
 Use monthly album chart:
 
 ```bash
-./lastfm_wallpaper.py --days 30
+poetry run lastfm_wallpaper --days 30
 ```
 
 Show fewer covers (six in two rows):
 
 ```bash
-./lastfm_wallpaper.py --rows 2 --count 6
+poetry run lastfm_wallpaper --rows 2 --count 6
 ```
 
 Album chart from year ago:
 
 ```bash
-./lastfm_wallpaper.py --days-ago 365
+poetry run lastfm_wallpaper --days-ago 365
 ```
 
 List available command line switches:
 
 ```bash
-./lastfm_wallpaper.py --help
+poetry run lastfm_wallpaper --help
 ```
 
 To avoid specifying the arguments repeatedly, you can set the options
