@@ -10,14 +10,14 @@ import glob
 import hashlib
 import logging
 import math
-import numpy
 import os
-import pylast
-import random
 import re
-import requests
 import shutil
+import sys
 
+import numpy
+import pylast
+import requests
 from PIL import (
     Image,
     ImageChops,
@@ -28,15 +28,15 @@ from PIL import (
     PngImagePlugin,
 )
 
-DEFAULT_CONFIG_FILE_PATH = os.path.expanduser('~/.config/lastfm_wallpaper.ini')
-DEFAULT_SERVER_NAME = 'default'
-DEFAULT_ALBUM_COVER_DIR = os.path.expanduser('~/.cache/lastfm_wallpaper')
+DEFAULT_CONFIG_FILE_PATH = os.path.expanduser("~/.config/lastfm_wallpaper.ini")
+DEFAULT_SERVER_NAME = "default"
+DEFAULT_ALBUM_COVER_DIR = os.path.expanduser("~/.cache/lastfm_wallpaper")
 DEFAULT_MAX_COVER_COUNT = 12
 DEFAULT_SPACE = 50
 
 DEFAULT_WIDTH = 1920
 DEFAULT_HEIGHT = 1080
-DEFAULT_SIZE = '{}x{}'.format(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+DEFAULT_SIZE = "{}x{}".format(DEFAULT_WIDTH, DEFAULT_HEIGHT)
 
 DEFAULT_MAX_TAGS_TO_MATCH = 2
 
@@ -51,12 +51,14 @@ format in file "{}".
     user = login_name
 """
 
-SEARCH_PATHS_EXAMPLE = os.path.pathsep.join((
-    os.path.join('~', 'Music', '{artist} - {album}', 'cover.*'),
-    os.path.join('~', 'Music', '*', '{artist} - {album}', 'cover.*'),
-))
+SEARCH_PATHS_EXAMPLE = os.path.pathsep.join(
+    (
+        os.path.join("~", "Music", "{artist} - {album}", "cover.*"),
+        os.path.join("~", "Music", "*", "{artist} - {album}", "cover.*"),
+    )
+)
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -65,13 +67,13 @@ class DownloadCoverError(RuntimeError):
 
 
 class TupleArgument:
-    def __init__(self, argument, separator=','):
+    def __init__(self, argument, separator=","):
         self.x, self.y = map(int, argument.split(separator))
 
 
 class SizeArgument(TupleArgument):
     def __init__(self, size):
-        super().__init__(size, 'x')
+        super().__init__(size, "x")
 
 
 class LayoutArgument:
@@ -83,7 +85,17 @@ class LayoutArgument:
 
 
 class Layout:
-    def __init__(self, positions, background, rows, columns, width, height, space, angle_range):
+    def __init__(
+        self,
+        positions,
+        background,
+        rows,
+        columns,
+        width,
+        height,
+        space,
+        angle_range,
+    ):
         self.positions = positions
         self.background = background
         self.rows = rows
@@ -93,7 +105,10 @@ class Layout:
         self.angle_range = angle_range
         self.angles = []
 
-        self.extent = extent = min((height - space * rows) // rows, (width - space * columns) // columns)
+        self.extent = extent = min(
+            (height - space * rows) // rows,
+            (width - space * columns) // columns,
+        )
         self.padding_x = (width - extent * columns) // (columns + 1)
         self.padding_y = (height - extent * rows) // (rows + 1)
 
@@ -101,7 +116,11 @@ class Layout:
         img = rotate(img, self.angle(cell))
 
         row, column = self.position(cell, self.columns)
-        x = column * self.extent + self.extent // 2 + (column + 1) * self.padding_x
+        x = (
+            column * self.extent
+            + self.extent // 2
+            + (column + 1) * self.padding_x
+        )
         y = row * self.extent + self.extent // 2 + (row + 1) * self.padding_y
         paste(img, x + offset[0], y + offset[1], self.background)
 
@@ -117,7 +136,7 @@ class Layout:
 
         count_to_add = cell + 1 - len(self.angles)
         self.angles.extend(
-            random.randrange(self.angle_range.x, self.angle_range.y)
+            numpy.random.randint(self.angle_range.x, self.angle_range.y)
             for _ in range(count_to_add)
         )
 
@@ -133,8 +152,8 @@ class CoverLoader:
         path = self.cover_path(index)
         img = self.cache.get(path)
         if not img:
-            img = Image.open(path, 'r')
-            img = img.convert('RGBA')
+            img = Image.open(path, "r")
+            img = img.convert("RGBA")
             self.cache[path] = img
         return img.resize((extent, extent), resample=Image.BICUBIC)
 
@@ -148,15 +167,14 @@ def parse_config(config_path, server):
     try:
         return config[server]
     except KeyError:
-        logger.error(MISSING_CONFIG_ERROR.format(config_path, server))
-        exit(1)
+        raise SystemExit(MISSING_CONFIG_ERROR.format(config_path, server))
 
 
 def parse_layout(value):
     try:
         positions = [
-            [int(x) for x in position.split(',')]
-            for position in value.split(' ')
+            [int(x) for x in position.split(",")]
+            for position in value.split(" ")
         ]
         min_x = min(positions, key=lambda p: p[0])[0]
         max_x = max(positions, key=lambda p: p[0])[0]
@@ -167,7 +185,7 @@ def parse_layout(value):
         positions = [(x - min_x, y - min_y) for x, y in positions]
         return positions, rows, columns
     except Exception as e:
-        logger.exception('Failed to parse positions argument: %s', e)
+        logger.exception("Failed to parse positions argument: %s", e)
         raise
 
 
@@ -179,16 +197,16 @@ def image_info(**args):
 
 
 def image_path(image_dir, base_name):
-    return os.path.join(image_dir, '{}.png'.format(base_name))
+    return os.path.join(image_dir, "{}.png".format(base_name))
 
 
 def cover_for_album(album):
     try:
         cover_url = album.get_cover_image(pylast.SIZE_MEGA)
         if not cover_url:
-            raise DownloadCoverError('Cover URL not available')
+            raise DownloadCoverError("Cover URL not available")
     except Exception as e:
-        raise DownloadCoverError('Failed to get cover URL: {}'.format(e))
+        raise DownloadCoverError("Failed to get cover URL: {}".format(e))
 
     return cover_url
 
@@ -197,19 +215,19 @@ def download_raw(url):
     try:
         r = requests.get(url, stream=True)
     except requests.exceptions.RequestException as e:
-        raise DownloadCoverError('Failed to download cover: {}'.format(e))
+        raise DownloadCoverError("Failed to download cover: {}".format(e))
 
     if r.status_code != 200:
-        raise DownloadCoverError('Failed to download cover: {}'.format(r.text))
+        raise DownloadCoverError("Failed to download cover: {}".format(r.text))
 
     r.raw.decode_content = True
     return r.raw
 
 
 def cache_path_for_album(album, cache_dir):
-    album_id = '{} //// {}'.format(album.artist, album.title)
-    cache_base_name = hashlib.sha256(album_id.encode('utf-8')).hexdigest()
-    return os.path.join(cache_dir, cache_base_name) + '.png'
+    album_id = "{} //// {}".format(album.artist, album.title)
+    cache_base_name = hashlib.sha256(album_id.encode("utf-8")).hexdigest()
+    return os.path.join(cache_dir, cache_base_name) + ".png"
 
 
 def save_cover(album, raw_or_path, path):
@@ -217,11 +235,11 @@ def save_cover(album, raw_or_path, path):
 
     # Workaround for opening 16bit greyscale images.
     # See: https://github.com/python-pillow/Pillow/issues/2574
-    if img.mode == 'I' and numpy.array(img).max() > 255:
-        logger.warning('Fixing 16bit image')
-        img = ImageMath.eval('img/256', {'img': img})
+    if img.mode == "I" and numpy.array(img).max() > 255:
+        logger.warning("Fixing 16bit image")
+        img = ImageMath.eval("img/256", {"img": img})
 
-    img = img.convert('RGBA')
+    img = img.convert("RGBA")
     info = image_info(artist=album.artist.name, album=album.title)
     img.save(path, pnginfo=info)
 
@@ -234,20 +252,18 @@ def download_cover(album, cache_path):
 
 def lastfm_user(api_key, api_secret, user):
     network = pylast.LastFMNetwork(
-        api_key=api_key,
-        api_secret=api_secret,
-        username=user
+        api_key=api_key, api_secret=api_secret, username=user
     )
 
     return network.get_user(user)
 
 
 def to_pattern(text):
-    case_insensitive = ''.join(
-        '[{}{}]'.format(c.lower(), c.upper()) if c.isalpha() else c
+    case_insensitive = "".join(
+        "[{}{}]".format(c.lower(), c.upper()) if c.isalpha() else c
         for c in str(text)
     )
-    return '*{}*'.format(case_insensitive)
+    return "*{}*".format(case_insensitive)
 
 
 def find_album(album, search):
@@ -282,13 +298,15 @@ def get_cover_for_album(album, path, cache_path, search):
     return True
 
 
-def download_covers(user, album_dir, from_date, to_date, max_count, search, tag_re, max_tags):
-    cache_dir = os.path.join(album_dir, '.cache')
+def download_covers(
+    user, album_dir, from_date, to_date, max_count, search, tag_re, max_tags
+):
+    cache_dir = os.path.join(album_dir, ".cache")
     os.makedirs(cache_dir, exist_ok=True)
 
     top_items = user.get_weekly_album_charts(
-        from_date=from_date.strftime('%s'),
-        to_date=to_date.strftime('%s'))
+        from_date=from_date.strftime("%s"), to_date=to_date.strftime("%s")
+    )
 
     count = 0
 
@@ -297,14 +315,18 @@ def download_covers(user, album_dir, from_date, to_date, max_count, search, tag_
 
         if tag_re:
             tags = album.artist.get_top_tags()
-            if not any(tag_re.match(tag.item.get_name()) for tag in tags[:max_tags]):
-                tag_names = ', '.join(tag.item.get_name() for tag in tags)
-                logger.info('No matching tags: %s (%s)', album, tag_names)
+            if not any(
+                tag_re.match(tag.item.get_name()) for tag in tags[:max_tags]
+            ):
+                tag_names = ", ".join(tag.item.get_name() for tag in tags)
+                logger.info("No matching tags: %s (%s)", album, tag_names)
                 continue
 
         path = image_path(album_dir, count + 1)
         cache_path = cache_path_for_album(album, cache_dir)
-        if get_cover_for_album(album, path=path, cache_path=cache_path, search=search):
+        if get_cover_for_album(
+            album, path=path, cache_path=cache_path, search=search
+        ):
             count += 1
             if count == max_count:
                 break
@@ -315,126 +337,190 @@ def download_covers(user, album_dir, from_date, to_date, max_count, search, tag_
 def parse_args():
     parser = argparse.ArgumentParser(
         description=__doc__,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
     parser.add_argument(
-        '--info', action='store_true',
-        help='print list of albums in the last wallpaper and exit')
+        "--info",
+        action="store_true",
+        help="print list of albums in the last wallpaper and exit",
+    )
 
     parser.add_argument(
-        '--config', default=DEFAULT_CONFIG_FILE_PATH,
-        help='config file path')
+        "--config", default=DEFAULT_CONFIG_FILE_PATH, help="config file path"
+    )
     parser.add_argument(
-        '--server', default=DEFAULT_SERVER_NAME,
-        help='server name (section in config file)')
+        "--server",
+        default=DEFAULT_SERVER_NAME,
+        help="server name (section in config file)",
+    )
     parser.add_argument(
-        '--dir', default=DEFAULT_ALBUM_COVER_DIR,
-        help='directory to store album covers')
+        "--dir",
+        default=DEFAULT_ALBUM_COVER_DIR,
+        help="directory to store album covers",
+    )
     parser.add_argument(
-        '--size', default=DEFAULT_SIZE, type=SizeArgument,
-        help='wallpaper size')
+        "--size",
+        default=DEFAULT_SIZE,
+        type=SizeArgument,
+        help="wallpaper size",
+    )
     parser.add_argument(
-        '--count', default=DEFAULT_MAX_COVER_COUNT, type=int,
-        help='maximum cover count')
+        "--count",
+        default=DEFAULT_MAX_COVER_COUNT,
+        type=int,
+        help="maximum cover count",
+    )
     parser.add_argument(
-        '--rows', default=-1, type=int,
-        help='number of rows; -1 to deduce')
+        "--rows", default=-1, type=int, help="number of rows; -1 to deduce"
+    )
     parser.add_argument(
-        '--columns', default=-1, type=int,
-        help='number of columns; -1 to deduce')
+        "--columns",
+        default=-1,
+        type=int,
+        help="number of columns; -1 to deduce",
+    )
     parser.add_argument(
-        '--space', default=DEFAULT_SPACE, type=int,
-        help='space between items')
+        "--space", default=DEFAULT_SPACE, type=int, help="space between items"
+    )
     parser.add_argument(
-        '--cached', action='store_true',
-        help='use already downloaded covers')
+        "--cached", action="store_true", help="use already downloaded covers"
+    )
     parser.add_argument(
-        '--search', default='',
-        help='album search patterns (e.g. "{}")'.format(SEARCH_PATHS_EXAMPLE))
+        "--search",
+        default="",
+        help='album search patterns (e.g. "{}")'.format(SEARCH_PATHS_EXAMPLE),
+    )
     parser.add_argument(
-        '--tags', default='',
-        help='tag search pattern; regular expression')
+        "--tags", default="", help="tag search pattern; regular expression"
+    )
     parser.add_argument(
-        '--max-tags', default=DEFAULT_MAX_TAGS_TO_MATCH, type=int,
-        help='maximum number tags to search')
+        "--max-tags",
+        default=DEFAULT_MAX_TAGS_TO_MATCH,
+        type=int,
+        help="maximum number tags to search",
+    )
 
     parser.add_argument(
-        '--angle-range', default='0,0', type=TupleArgument,
-        help='random cover rotation')
+        "--angle-range",
+        default="0,0",
+        type=TupleArgument,
+        help="random cover rotation",
+    )
 
     parser.add_argument(
-        '--shadow-offset', default='1,1', type=TupleArgument,
-        help='shadow offset')
+        "--shadow-offset",
+        default="1,1",
+        type=TupleArgument,
+        help="shadow offset",
+    )
     parser.add_argument(
-        '--shadow-blur', default=4, type=int,
-        help='shadow blur')
-    parser.add_argument(
-        '--shadow-color', default='black',
-        help='shadow color')
+        "--shadow-blur", default=4, type=int, help="shadow blur"
+    )
+    parser.add_argument("--shadow-color", default="black", help="shadow color")
 
     parser.add_argument(
-        '--border-color', default='black',
-        help='border color; "auto" to auto-detect based on cover')
+        "--border-color",
+        default="black",
+        help='border color; "auto" to auto-detect based on cover',
+    )
     parser.add_argument(
-        '--border-size', default=10, type=int,
-        help='border size')
+        "--border-size", default=10, type=int, help="border size"
+    )
 
     parser.add_argument(
-        '--days', default=7, type=int,
-        help='number of days to consider')
+        "--days", default=7, type=int, help="number of days to consider"
+    )
     parser.add_argument(
-        '--hours', default=0, type=int,
-        help='number of additional hours to consider')
+        "--hours",
+        default=0,
+        type=int,
+        help="number of additional hours to consider",
+    )
     parser.add_argument(
-        '--days-ago', default=0, type=int,
-        help='consider end date X days ago instead of today')
+        "--days-ago",
+        default=0,
+        type=int,
+        help="consider end date X days ago instead of today",
+    )
 
     parser.add_argument(
-        '--base', default='random',
-        help=('base image file'
-              '; "random" to pick one of the covers'
-              '; <number> to pick the cover at given position'))
+        "--base",
+        default="random",
+        help=(
+            "base image file"
+            '; "random" to pick one of the covers'
+            "; <number> to pick the cover at given position"
+        ),
+    )
     parser.add_argument(
-        '--base-blur', default=3, type=int,
-        help='base image blur')
+        "--base-blur", default=3, type=int, help="base image blur"
+    )
     parser.add_argument(
-        '--base-brightness', default=80, type=int,
-        help='base image brightness percentage')
+        "--base-brightness",
+        default=80,
+        type=int,
+        help="base image brightness percentage",
+    )
     parser.add_argument(
-        '--base-noise', default=10, type=int,
-        help='base image noise percentage')
+        "--base-noise",
+        default=10,
+        type=int,
+        help="base image noise percentage",
+    )
     parser.add_argument(
-        '--base-color', default=50, type=int,
-        help='base image color percentage')
+        "--base-color",
+        default=50,
+        type=int,
+        help="base image color percentage",
+    )
 
     parser.add_argument(
-        '--cover-brightness', default=100, type=int,
-        help='cover image brightness percentage')
+        "--cover-brightness",
+        default=100,
+        type=int,
+        help="cover image brightness percentage",
+    )
     parser.add_argument(
-        '--cover-noise', default=5, type=int,
-        help='cover image noise percentage')
+        "--cover-noise",
+        default=5,
+        type=int,
+        help="cover image noise percentage",
+    )
     parser.add_argument(
-        '--cover-color', default=100, type=int,
-        help='cover image color percentage')
+        "--cover-color",
+        default=100,
+        type=int,
+        help="cover image color percentage",
+    )
     parser.add_argument(
-        '--cover-glow', default=40, type=int,
-        help='cover glow amount')
+        "--cover-glow", default=40, type=int, help="cover glow amount"
+    )
 
     parser.add_argument(
-        '--random-seed', default=-1, type=int,
-        help='seed number to initialize random number generator; random if negative')
+        "--random-seed",
+        default=-1,
+        type=int,
+        help=(
+            "seed number to initialize random number generator; "
+            "random if negative"
+        ),
+    )
 
     parser.add_argument(
-        '--layout', default=None, type=LayoutArgument,
-        help=('cover positions and layout'
-              '; space separated list of "row,column" values')
+        "--layout",
+        default=None,
+        type=LayoutArgument,
+        help=(
+            "cover positions and layout"
+            '; space separated list of "row,column" values'
+        ),
     )
 
     args = parser.parse_args()
     config = parse_config(args.config, args.server)
     config = {
-        key.lower().replace('-', '_'): value
-        for key, value in config.items()
+        key.lower().replace("-", "_"): value for key, value in config.items()
     }
     parser.set_defaults(**config)
 
@@ -442,8 +528,8 @@ def parse_args():
 
 
 def background_image(path, width, height, blur_radius):
-    background = Image.open(path, 'r')
-    background = background.convert('RGBA')
+    background = Image.open(path, "r")
+    background = background.convert("RGBA")
     extent = math.floor(max(width, height))
     x = (extent - width) // 2
     y = (extent - height) // 2
@@ -456,8 +542,10 @@ def add_noise(img, noise_percentage):
     if noise_percentage <= 0:
         return img
 
-    noise = numpy.random.randint(0, 255, size=(img.height, img.width, 3), dtype=numpy.uint8)
-    noise_image = Image.fromarray(noise, mode='RGB').convert('RGBA')
+    noise = numpy.random.randint(
+        0, 255, size=(img.height, img.width, 3), dtype=numpy.uint8
+    )
+    noise_image = Image.fromarray(noise, mode="RGB").convert("RGBA")
     return ImageChops.blend(img, noise_image, noise_percentage / 100)
 
 
@@ -475,7 +563,9 @@ def rotate(img, angle):
 
     # Expand first to have smoother edges.
     img = ImageOps.expand(img, 4, fill=0)
-    return img.rotate(angle, resample=Image.BICUBIC, expand=True, fillcolor=(0, 0, 0, 0))
+    return img.rotate(
+        angle, resample=Image.BICUBIC, expand=True, fillcolor=(0, 0, 0, 0)
+    )
 
 
 def blur(img, radius):
@@ -489,10 +579,10 @@ def glow(img, amount):
     img = blur(img, amount)
 
     extent2 = int(img.width * 0.6)
-    mask = img.convert('L')
+    mask = img.convert("L")
     mask = mask.resize((extent2, extent2))
     d = (extent1 - extent2) // 2
-    mask = ImageOps.expand(mask, d, 'black')
+    mask = ImageOps.expand(mask, d, "black")
     mask = mask.resize((img.width, extent1))
     mask = blur(mask, amount)
     img.putalpha(mask)
@@ -521,31 +611,29 @@ def init_random_seed(seed):
     if seed < 0:
         return
 
-    random.seed(a=seed, version=2)
     numpy.random.seed(seed)
 
 
 def print_info(album_dir):
-    path = image_path(album_dir, 'wallpaper')
+    path = image_path(album_dir, "wallpaper")
     if not os.path.isfile(path):
-        logger.error("No wallpaper found")
-        exit(1)
+        raise SystemExit("No wallpaper found")
 
-    img = Image.open(path, 'r')
+    img = Image.open(path, "r")
 
     info = img.info
-    albums = info.pop('albums', None)
+    albums = info.pop("albums", None)
 
-    info['image'] = path
-    info['resolution'] = '{}x{}'.format(img.width, img.height)
+    info["image"] = path
+    info["resolution"] = "{}x{}".format(img.width, img.height)
 
     for k, v in sorted(info.items()):
-        print('# {}: {}'.format(k, v))
+        print("# {}: {}".format(k, v))
 
     if albums:
-        print('# albums:\n\n{}'.format(albums))
+        print("# albums:\n\n{}".format(albums))
 
-    exit(0)
+    sys.exit(0)
 
 
 def main():
@@ -567,8 +655,11 @@ def main():
     if args.layout:
         positions = args.layout.positions
         if len(positions) < max_count:
-            logger.error("Expected %s positions but %s specified", max_count, len(positions))
-            exit(1)
+            raise SystemExit(
+                "Expected %s positions but %s specified",
+                max_count,
+                len(positions),
+            )
         if rows < 0:
             rows = args.layout.rows
         if columns < 0:
@@ -577,24 +668,29 @@ def main():
         positions = None
 
     user = lastfm_user(
-        api_key=args.api_key,
-        api_secret=args.api_secret,
-        user=args.user
+        api_key=args.api_key, api_secret=args.api_secret, user=args.user
     )
 
     image_info_dict = {}
 
     search = [
-        os.path.expanduser(path)
-        for path in args.search.split(os.path.pathsep)
+        os.path.expanduser(path) for path in args.search.split(os.path.pathsep)
     ]
 
     if args.cached:
         count = max_count
     else:
-        to_date = datetime.datetime.now() - datetime.timedelta(days=args.days_ago)
-        from_date = to_date - datetime.timedelta(days=args.days) - datetime.timedelta(hours=args.hours)
-        image_info_dict['dates'] = '{}..{}'.format(from_date.date(), to_date.date())
+        to_date = datetime.datetime.now() - datetime.timedelta(
+            days=args.days_ago
+        )
+        from_date = (
+            to_date
+            - datetime.timedelta(days=args.days)
+            - datetime.timedelta(hours=args.hours)
+        )
+        image_info_dict["dates"] = "{}..{}".format(
+            from_date.date(), to_date.date()
+        )
         tag_re = re.compile(args.tags, re.IGNORECASE) if args.tags else None
         count = download_covers(
             user=user,
@@ -608,17 +704,12 @@ def main():
         )
 
     if count <= 0:
-        logger.error("No albums in given time range")
-        exit(1)
+        raise SystemExit("No albums in given time range")
 
     if rows < 0 and columns < 0:
         x = width / height
         _, _, rows = min(
-            [
-                count % rows,
-                abs(x - (count / rows) / rows),
-                rows
-            ]
+            [count % rows, abs(x - (count / rows) / rows), rows]
             for rows in range(1, count + 1)
         )
     if rows < 0:
@@ -631,8 +722,8 @@ def main():
 
     loader = CoverLoader(album_dir)
 
-    if args.base == 'random':
-        i = random.randrange(count)
+    if args.base == "random":
+        i = numpy.random.randint(count)
         path = loader.cover_path(i)
     else:
         try:
@@ -651,16 +742,31 @@ def main():
     if not columns:
         columns = math.ceil(count / rows)
     space = args.space * scale
-    layout = Layout(positions, background, rows, columns, width, height, space, args.angle_range)
+    layout = Layout(
+        positions,
+        background,
+        rows,
+        columns,
+        width,
+        height,
+        space,
+        args.angle_range,
+    )
     extent = layout.extent
 
     shadow_size = int(extent * 1.2)
-    shadow = Image.new('RGBA', (shadow_size, shadow_size))
+    shadow = Image.new("RGBA", (shadow_size, shadow_size))
     shadow_pos = (shadow_size - extent) // 2
-    shadow.paste(args.shadow_color, (shadow_pos, shadow_pos, extent + shadow_pos, extent + shadow_pos))
+    shadow.paste(
+        args.shadow_color,
+        (shadow_pos, shadow_pos, extent + shadow_pos, extent + shadow_pos),
+    )
     shadow_blur = args.shadow_blur * scale
     shadow = blur(shadow, shadow_blur)
-    shadow_offset = (args.shadow_offset.x * scale, args.shadow_offset.y * scale)
+    shadow_offset = (
+        args.shadow_offset.x * scale,
+        args.shadow_offset.y * scale,
+    )
 
     border = args.border_size * scale
 
@@ -679,13 +785,13 @@ def main():
     for i in reversed(range(count)):
         extent1 = extent - 2 * border
         img = loader.cover(i, extent1)
-        artist = img.info.get('artist')
-        album = img.info.get('album')
+        artist = img.info.get("artist")
+        album = img.info.get("album")
         if artist and album:
-            albums.insert(0, '{} - {}'.format(artist, album))
+            albums.insert(0, "{} - {}".format(artist, album))
 
         border_color = args.border_color
-        if border_color == 'auto':
+        if border_color == "auto":
             border_color = auto_border_color(img)
 
         img = ImageOps.expand(img, border, border_color)
@@ -696,17 +802,17 @@ def main():
 
         layout.paste(i, img)
 
-    albums = '\n'.join(albums)
+    albums = "\n".join(albums)
     if args.cached:
-        logger.info('Using cached covers for albums:\n%s', albums)
+        logger.info("Using cached covers for albums:\n%s", albums)
 
-    image_info_dict['albums'] = albums
-    image_info_dict['url'] = user.get_url()
+    image_info_dict["albums"] = albums
+    image_info_dict["url"] = user.get_url()
 
-    path = image_path(album_dir, 'wallpaper')
+    path = image_path(album_dir, "wallpaper")
     info = image_info(**image_info_dict)
     background.save(path, pnginfo=info)
-    print('Wallpaper saved: {}'.format(path))
+    print("Wallpaper saved: {}".format(path))
 
 
 if __name__ == "__main__":
