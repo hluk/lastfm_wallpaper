@@ -225,7 +225,8 @@ def fix_name(name):
     """
     name = str(name).strip()
     if name.endswith(")"):
-        return name.rsplit("(", 1)[0].rstrip()
+        name = name.rsplit("(", 1)[0].rstrip()
+    name = name.replace(".", " ")
     return name
 
 
