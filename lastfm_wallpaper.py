@@ -14,6 +14,7 @@ import os
 import re
 import shutil
 import sys
+from functools import lru_cache
 
 import numpy
 import pylast
@@ -27,6 +28,7 @@ from PIL import (
     ImageOps,
     PngImagePlugin,
 )
+from urllib3.util.retry import Retry
 
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser("~/.config/lastfm_wallpaper.ini")
 DEFAULT_SERVER_NAME = "default"
@@ -60,6 +62,23 @@ SEARCH_PATHS_EXAMPLE = os.path.pathsep.join(
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=1)
+def session():
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        read=3,
+        connect=3,
+        backoff_factor=1,
+        status_forcelist=(500, 502, 503, 504),
+        method_whitelist=Retry.DEFAULT_METHOD_WHITELIST.union(("POST",)),
+    )
+    adapter = requests.adapters.HTTPAdapter(max_retries=retry)
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    return session
 
 
 class DownloadCoverError(RuntimeError):
@@ -200,9 +219,40 @@ def image_path(image_dir, base_name):
     return os.path.join(image_dir, "{}.png".format(base_name))
 
 
+def fix_name(name):
+    """
+    Fixes album/artist name.
+    """
+    name = str(name).strip()
+    if name.endswith(")"):
+        return name.rsplit("(", 1)[0].rstrip()
+    return name
+
+
+def get_cover_image_from_lastfm(album):
+    return album.get_cover_image(pylast.SIZE_MEGA)
+
+
+def get_cover_image_from_deezer(album):
+    url = "https://api.deezer.com/search/autocomplete"
+    try:
+        resp = session().get(
+            url,
+            params={
+                "q": f"{fix_name(album.artist)} - {fix_name(album.title)}",
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()["albums"]["data"][0]["cover_xl"]
+    except Exception as e:
+        logger.warning("Failed to fetch cover from %r: %s", url, e)
+
+
 def cover_for_album(album):
     try:
-        cover_url = album.get_cover_image(pylast.SIZE_MEGA)
+        cover_url = get_cover_image_from_deezer(
+            album
+        ) or get_cover_image_from_lastfm(album)
         if not cover_url:
             raise DownloadCoverError("Cover URL not available")
     except Exception as e:
@@ -213,7 +263,7 @@ def cover_for_album(album):
 
 def download_raw(url):
     try:
-        r = requests.get(url, stream=True)
+        r = session().get(url, stream=True)
     except requests.exceptions.RequestException as e:
         raise DownloadCoverError("Failed to download cover: {}".format(e))
 
