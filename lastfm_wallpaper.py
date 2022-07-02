@@ -244,7 +244,16 @@ def get_cover_image_from_deezer(album):
             },
         )
         resp.raise_for_status()
-        return resp.json()["albums"]["data"][0]["cover_xl"]
+        albums = resp.json()["albums"]["data"]
+        matching_albums = [
+            album
+            for album in albums
+            if album["title"].lower() == album.title.lower()
+            or album["artist"]["name"].lower() == album.artist.lower()
+        ]
+        if matching_albums:
+            return matching_albums[0]["cover_xl"]
+        logger.warning("No matching album from %r", url)
     except Exception as e:
         logger.warning("Failed to fetch cover from %r: %s", url, e)
 
