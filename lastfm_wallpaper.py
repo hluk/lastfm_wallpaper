@@ -234,6 +234,16 @@ def get_cover_image_from_lastfm(album):
     return album.get_cover_image(pylast.SIZE_MEGA)
 
 
+def find_matching_album_from_deezer_data(albums_data, title, artist):
+    for album in albums_data:
+        if (
+            album["title"].lower() == title
+            or album["artist"]["name"].lower() == artist
+        ):
+            return album
+    return None
+
+
 def get_cover_image_from_deezer(album):
     url = "https://api.deezer.com/search/autocomplete"
     try:
@@ -244,18 +254,19 @@ def get_cover_image_from_deezer(album):
             },
         )
         resp.raise_for_status()
-        albums = resp.json()["albums"]["data"]
-        matching_albums = [
-            album
-            for album in albums
-            if album["title"].lower() == album.title.lower()
-            or album["artist"]["name"].lower() == album.artist.lower()
-        ]
-        if matching_albums:
-            return matching_albums[0]["cover_xl"]
+        albums_data = resp.json()["albums"]["data"]
+        title = album.title.lower()
+        artist = str(album.artist).lower()
+        matching_album = find_matching_album_from_deezer_data(
+            albums_data, title, artist
+        )
+        if matching_album:
+            return matching_album["cover_xl"]
         logger.warning("No matching album from %r", url)
     except Exception as e:
         logger.warning("Failed to fetch cover from %r: %s", url, e)
+
+    return None
 
 
 def cover_for_album(album):
