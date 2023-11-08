@@ -6,8 +6,8 @@ license = "MIT"
 authors = ["Lukas Holecek <hluk@email.cz>"]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<4.0"
-numpy = "^1.22.3"
+python = ">=3.9,<3.13"
+numpy = "^1.26.1"
 Pillow = "^10.0.1"
 pylast = "^4.5.0"
 requests = "^2.31.0"
