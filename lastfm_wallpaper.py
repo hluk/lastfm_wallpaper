@@ -728,7 +728,7 @@ def main():
             - datetime.timedelta(days=args.days)
             - datetime.timedelta(hours=args.hours)
         )
-        image_info_dict["dates"] = "{}..{}".format(from_date.date(), to_date.date())
+        image_info_dict["dates"] = f"{from_date.date()}..{to_date.date()}"
         tag_re = re.compile(args.tags, re.IGNORECASE) if args.tags else None
         count = download_covers(
             user=user,
