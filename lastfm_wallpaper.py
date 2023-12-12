@@ -38,7 +38,7 @@ DEFAULT_SPACE = 50
 
 DEFAULT_WIDTH = 1920
 DEFAULT_HEIGHT = 1080
-DEFAULT_SIZE = "{}x{}".format(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+DEFAULT_SIZE = f"{DEFAULT_WIDTH}x{DEFAULT_HEIGHT}"
 
 DEFAULT_MAX_TAGS_TO_MATCH = 2
 
@@ -135,11 +135,7 @@ class Layout:
         img = rotate(img, self.angle(cell))
 
         row, column = self.position(cell, self.columns)
-        x = (
-            column * self.extent
-            + self.extent // 2
-            + (column + 1) * self.padding_x
-        )
+        x = column * self.extent + self.extent // 2 + (column + 1) * self.padding_x
         y = row * self.extent + self.extent // 2 + (row + 1) * self.padding_y
         paste(img, x + offset[0], y + offset[1], self.background)
 
@@ -192,8 +188,7 @@ def parse_config(config_path, server):
 def parse_layout(value):
     try:
         positions = [
-            [int(x) for x in position.split(",")]
-            for position in value.split(" ")
+            [int(x) for x in position.split(",")] for position in value.split(" ")
         ]
         min_x = min(positions, key=lambda p: p[0])[0]
         max_x = max(positions, key=lambda p: p[0])[0]
@@ -216,7 +211,7 @@ def image_info(**args):
 
 
 def image_path(image_dir, base_name):
-    return os.path.join(image_dir, "{}.png".format(base_name))
+    return os.path.join(image_dir, f"{base_name}.png")
 
 
 def fix_name(name):
@@ -236,10 +231,7 @@ def get_cover_image_from_lastfm(album):
 
 def find_matching_album_from_deezer_data(albums_data, title, artist):
     for album in albums_data:
-        if (
-            album["title"].lower() == title
-            or album["artist"]["name"].lower() == artist
-        ):
+        if album["title"].lower() == title or album["artist"]["name"].lower() == artist:
             return album
     return None
 
@@ -271,13 +263,13 @@ def get_cover_image_from_deezer(album):
 
 def cover_for_album(album):
     try:
-        cover_url = get_cover_image_from_deezer(
+        cover_url = get_cover_image_from_deezer(album) or get_cover_image_from_lastfm(
             album
-        ) or get_cover_image_from_lastfm(album)
+        )
         if not cover_url:
             raise DownloadCoverError("Cover URL not available")
     except Exception as e:
-        raise DownloadCoverError("Failed to get cover URL: {}".format(e))
+        raise DownloadCoverError(f"Failed to get cover URL: {e}")
 
     return cover_url
 
@@ -286,17 +278,17 @@ def download_raw(url):
     try:
         r = session().get(url, stream=True)
     except requests.exceptions.RequestException as e:
-        raise DownloadCoverError("Failed to download cover: {}".format(e))
+        raise DownloadCoverError(f"Failed to download cover: {e}")
 
     if r.status_code != 200:
-        raise DownloadCoverError("Failed to download cover: {}".format(r.text))
+        raise DownloadCoverError(f"Failed to download cover: {r.text}")
 
     r.raw.decode_content = True
     return r.raw
 
 
 def cache_path_for_album(album, cache_dir):
-    album_id = "{} //// {}".format(album.artist, album.title)
+    album_id = f"{album.artist} //// {album.title}"
     cache_base_name = hashlib.sha256(album_id.encode("utf-8")).hexdigest()
     return os.path.join(cache_dir, cache_base_name) + ".png"
 
@@ -331,10 +323,9 @@ def lastfm_user(api_key, api_secret, user):
 
 def to_pattern(text):
     case_insensitive = "".join(
-        "[{}{}]".format(c.lower(), c.upper()) if c.isalpha() else c
-        for c in str(text)
+        f"[{c.lower()}{c.upper()}]" if c.isalpha() else c for c in str(text)
     )
-    return "*{}*".format(case_insensitive)
+    return f"*{case_insensitive}*"
 
 
 def find_album(album, search):
@@ -386,18 +377,14 @@ def download_covers(
 
         if tag_re:
             tags = album.artist.get_top_tags()
-            if not any(
-                tag_re.match(tag.item.get_name()) for tag in tags[:max_tags]
-            ):
+            if not any(tag_re.match(tag.item.get_name()) for tag in tags[:max_tags]):
                 tag_names = ", ".join(tag.item.get_name() for tag in tags)
                 logger.info("No matching tags: %s (%s)", album, tag_names)
                 continue
 
         path = image_path(album_dir, count + 1)
         cache_path = cache_path_for_album(album, cache_dir)
-        if get_cover_for_album(
-            album, path=path, cache_path=cache_path, search=search
-        ):
+        if get_cover_for_album(album, path=path, cache_path=cache_path, search=search):
             count += 1
             if count == max_count:
                 break
@@ -460,7 +447,7 @@ def parse_args():
     parser.add_argument(
         "--search",
         default="",
-        help='album search patterns (e.g. "{}")'.format(SEARCH_PATHS_EXAMPLE),
+        help=f'album search patterns (e.g. "{SEARCH_PATHS_EXAMPLE}")',
     )
     parser.add_argument(
         "--tags", default="", help="tag search pattern; regular expression"
@@ -485,9 +472,7 @@ def parse_args():
         type=TupleArgument,
         help="shadow offset",
     )
-    parser.add_argument(
-        "--shadow-blur", default=4, type=int, help="shadow blur"
-    )
+    parser.add_argument("--shadow-blur", default=4, type=int, help="shadow blur")
     parser.add_argument("--shadow-color", default="black", help="shadow color")
 
     parser.add_argument(
@@ -495,9 +480,7 @@ def parse_args():
         default="black",
         help='border color; "auto" to auto-detect based on cover',
     )
-    parser.add_argument(
-        "--border-size", default=10, type=int, help="border size"
-    )
+    parser.add_argument("--border-size", default=10, type=int, help="border size")
 
     parser.add_argument(
         "--days", default=7, type=int, help="number of days to consider"
@@ -524,9 +507,7 @@ def parse_args():
             "; <number> to pick the cover at given position"
         ),
     )
-    parser.add_argument(
-        "--base-blur", default=3, type=int, help="base image blur"
-    )
+    parser.add_argument("--base-blur", default=3, type=int, help="base image blur")
     parser.add_argument(
         "--base-brightness",
         default=80,
@@ -564,17 +545,14 @@ def parse_args():
         type=int,
         help="cover image color percentage",
     )
-    parser.add_argument(
-        "--cover-glow", default=40, type=int, help="cover glow amount"
-    )
+    parser.add_argument("--cover-glow", default=40, type=int, help="cover glow amount")
 
     parser.add_argument(
         "--random-seed",
         default=-1,
         type=int,
         help=(
-            "seed number to initialize random number generator; "
-            "random if negative"
+            "seed number to initialize random number generator; " "random if negative"
         ),
     )
 
@@ -583,16 +561,13 @@ def parse_args():
         default=None,
         type=LayoutArgument,
         help=(
-            "cover positions and layout"
-            '; space separated list of "row,column" values'
+            "cover positions and layout" '; space separated list of "row,column" values'
         ),
     )
 
     args = parser.parse_args()
     config = parse_config(args.config, args.server)
-    config = {
-        key.lower().replace("-", "_"): value for key, value in config.items()
-    }
+    config = {key.lower().replace("-", "_"): value for key, value in config.items()}
     parser.set_defaults(**config)
 
     return parser.parse_args()
@@ -696,13 +671,13 @@ def print_info(album_dir):
     albums = info.pop("albums", None)
 
     info["image"] = path
-    info["resolution"] = "{}x{}".format(img.width, img.height)
+    info["resolution"] = f"{img.width}x{img.height}"
 
     for k, v in sorted(info.items()):
-        print("# {}: {}".format(k, v))
+        print(f"# {k}: {v}")
 
     if albums:
-        print("# albums:\n\n{}".format(albums))
+        print(f"# albums:\n\n{albums}")
 
     sys.exit(0)
 
@@ -738,30 +713,22 @@ def main():
     else:
         positions = None
 
-    user = lastfm_user(
-        api_key=args.api_key, api_secret=args.api_secret, user=args.user
-    )
+    user = lastfm_user(api_key=args.api_key, api_secret=args.api_secret, user=args.user)
 
     image_info_dict = {}
 
-    search = [
-        os.path.expanduser(path) for path in args.search.split(os.path.pathsep)
-    ]
+    search = [os.path.expanduser(path) for path in args.search.split(os.path.pathsep)]
 
     if args.cached:
         count = max_count
     else:
-        to_date = datetime.datetime.now() - datetime.timedelta(
-            days=args.days_ago
-        )
+        to_date = datetime.datetime.now() - datetime.timedelta(days=args.days_ago)
         from_date = (
             to_date
             - datetime.timedelta(days=args.days)
             - datetime.timedelta(hours=args.hours)
         )
-        image_info_dict["dates"] = "{}..{}".format(
-            from_date.date(), to_date.date()
-        )
+        image_info_dict["dates"] = f"{from_date.date()}..{to_date.date()}"
         tag_re = re.compile(args.tags, re.IGNORECASE) if args.tags else None
         count = download_covers(
             user=user,
@@ -859,7 +826,7 @@ def main():
         artist = img.info.get("artist")
         album = img.info.get("album")
         if artist and album:
-            albums.insert(0, "{} - {}".format(artist, album))
+            albums.insert(0, f"{artist} - {album}")
 
         border_color = args.border_color
         if border_color == "auto":
@@ -883,7 +850,7 @@ def main():
     path = image_path(album_dir, "wallpaper")
     info = image_info(**image_info_dict)
     background.save(path, pnginfo=info)
-    print("Wallpaper saved: {}".format(path))
+    print(f"Wallpaper saved: {path}")
 
 
 if __name__ == "__main__":
