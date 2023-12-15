@@ -4,21 +4,22 @@ Creates wallpaper with personal top albums from Last.fm.
 """
 
 import argparse
+import asyncio
 import configparser
 import datetime
 import glob
 import hashlib
+import io
 import logging
 import math
 import os
 import re
 import shutil
 import sys
-from functools import lru_cache
 
+import aiohttp
 import numpy
 import pylast
-import requests
 from PIL import (
     Image,
     ImageChops,
@@ -28,7 +29,6 @@ from PIL import (
     ImageOps,
     PngImagePlugin,
 )
-from urllib3.util.retry import Retry
 
 DEFAULT_CONFIG_FILE_PATH = os.path.expanduser("~/.config/lastfm_wallpaper.ini")
 DEFAULT_SERVER_NAME = "default"
@@ -62,23 +62,6 @@ SEARCH_PATHS_EXAMPLE = os.path.pathsep.join(
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
-
-
-@lru_cache(maxsize=1)
-def session():
-    session = requests.Session()
-    retry = Retry(
-        total=3,
-        read=3,
-        connect=3,
-        backoff_factor=1,
-        status_forcelist=(500, 502, 503, 504),
-        allowed_methods=Retry.DEFAULT_ALLOWED_METHODS.union(("POST",)),
-    )
-    adapter = requests.adapters.HTTPAdapter(max_retries=retry)
-    session.mount("http://", adapter)
-    session.mount("https://", adapter)
-    return session
 
 
 class DownloadCoverError(RuntimeError):
@@ -236,17 +219,18 @@ def find_matching_album_from_deezer_data(albums_data, title, artist):
     return None
 
 
-def get_cover_image_from_deezer(album):
+async def get_cover_image_from_deezer(album, session):
     url = "https://api.deezer.com/search/autocomplete"
     try:
-        resp = session().get(
+        resp = await session.get(
             url,
             params={
                 "q": f"{fix_name(album.artist)} - {fix_name(album.title)}",
             },
         )
         resp.raise_for_status()
-        albums_data = resp.json()["albums"]["data"]
+        data = await resp.json()
+        albums_data = data["albums"]["data"]
         title = album.title.lower()
         artist = str(album.artist).lower()
         matching_album = find_matching_album_from_deezer_data(
@@ -261,11 +245,11 @@ def get_cover_image_from_deezer(album):
     return None
 
 
-def cover_for_album(album):
+async def cover_for_album(album, session):
     try:
-        cover_url = get_cover_image_from_deezer(album) or get_cover_image_from_lastfm(
-            album
-        )
+        cover_url = await get_cover_image_from_deezer(album, session)
+        if not cover_url:
+            cover_url = get_cover_image_from_lastfm(album)
         if not cover_url:
             raise DownloadCoverError("Cover URL not available")
     except Exception as e:
@@ -274,17 +258,16 @@ def cover_for_album(album):
     return cover_url
 
 
-def download_raw(url):
+async def download_raw(url, session):
     try:
-        r = session().get(url, stream=True)
-    except requests.exceptions.RequestException as e:
+        r = await session.get(url)
+    except aiohttp.ClientError as e:
         raise DownloadCoverError(f"Failed to download cover: {e}")
 
-    if r.status_code != 200:
+    if r.status != 200:
         raise DownloadCoverError(f"Failed to download cover: {r.text}")
 
-    r.raw.decode_content = True
-    return r.raw
+    return io.BytesIO(await r.read())
 
 
 def cache_path_for_album(album, cache_dir):
@@ -307,9 +290,9 @@ def save_cover(album, raw_or_path, path):
     img.save(path, pnginfo=info)
 
 
-def download_cover(album, cache_path):
-    cover_url = cover_for_album(album)
-    raw = download_raw(cover_url)
+async def download_cover(album, cache_path, session):
+    cover_url = await cover_for_album(album, session)
+    raw = await download_raw(cover_url, session)
     save_cover(album, raw, cache_path)
 
 
@@ -340,7 +323,7 @@ def find_album(album, search):
             pass
 
 
-def get_cover_for_album(album, path, cache_path, search):
+async def get_cover_for_album(album, *, cache_path, search, session):
     if os.path.isfile(cache_path):
         logger.info('Album "%s": Using cached cover', album)
     else:
@@ -351,17 +334,25 @@ def get_cover_for_album(album, path, cache_path, search):
         else:
             try:
                 logger.info('Album "%s": Downloading cover', album)
-                download_cover(album, cache_path)
+                await download_cover(album, cache_path, session)
             except DownloadCoverError as e:
                 logger.warning(e)
-                return False
+                return None
 
-    shutil.copyfile(cache_path, path)
-    return True
+    return cache_path
 
 
-def download_covers(
-    user, album_dir, from_date, to_date, max_count, search, tag_re, max_tags
+def save_covers(album_dir, done, count):
+    cache_paths = [result.result() for result in done if result.result()]
+    for cache_path in cache_paths:
+        count += 1
+        path = image_path(album_dir, count + 1)
+        shutil.copyfile(cache_path, path)
+    return count
+
+
+async def download_covers(
+    user, album_dir, from_date, to_date, max_count, search, tag_re, max_tags, session
 ):
     cache_dir = os.path.join(album_dir, ".cache")
     os.makedirs(cache_dir, exist_ok=True)
@@ -371,7 +362,7 @@ def download_covers(
     )
 
     count = 0
-
+    tasks = set()
     for top_item in top_items:
         album = top_item.item
 
@@ -382,14 +373,24 @@ def download_covers(
                 logger.info("No matching tags: %s (%s)", album, tag_names)
                 continue
 
-        path = image_path(album_dir, count + 1)
         cache_path = cache_path_for_album(album, cache_dir)
-        if get_cover_for_album(album, path=path, cache_path=cache_path, search=search):
-            count += 1
-            if count == max_count:
-                break
+        task = asyncio.ensure_future(
+            get_cover_for_album(
+                album, cache_path=cache_path, search=search, session=session
+            )
+        )
+        tasks.add(task)
 
-    return count
+        done = set()
+        while len(tasks) >= max_count - count and all(result for result in done):
+            done, tasks = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            count = save_covers(album_dir, done, count)
+            if count >= max_count:
+                return min(count, max_count)
+
+    done = await asyncio.gather(*tasks)
+    count = save_covers(album_dir, done, count)
+    return min(count, max_count)
 
 
 def parse_args():
@@ -682,7 +683,7 @@ def print_info(album_dir):
     sys.exit(0)
 
 
-def main():
+async def async_main():
     args = parse_args()
 
     album_dir = args.dir
@@ -730,16 +731,20 @@ def main():
         )
         image_info_dict["dates"] = f"{from_date.date()}..{to_date.date()}"
         tag_re = re.compile(args.tags, re.IGNORECASE) if args.tags else None
-        count = download_covers(
-            user=user,
-            album_dir=album_dir,
-            from_date=from_date,
-            to_date=to_date,
-            max_count=max_count,
-            search=search,
-            tag_re=tag_re,
-            max_tags=args.max_tags,
-        )
+
+        logger.info("Fetching covers...")
+        async with aiohttp.ClientSession() as session:
+            count = await download_covers(
+                user=user,
+                album_dir=album_dir,
+                from_date=from_date,
+                to_date=to_date,
+                max_count=max_count,
+                search=search,
+                tag_re=tag_re,
+                max_tags=args.max_tags,
+                session=session,
+            )
 
     if count <= 0:
         raise SystemExit("No albums in given time range")
@@ -758,6 +763,7 @@ def main():
     scale = max(1, int(width / DEFAULT_WIDTH))
     base_blur = args.base_blur * scale
 
+    logger.info("Loading covers...")
     loader = CoverLoader(album_dir)
 
     if args.base == "random":
@@ -771,8 +777,9 @@ def main():
             path = loader.cover_path(i)
         except TypeError:
             path = args.base
-    background = background_image(path, width, height, blur_radius=base_blur)
 
+    logger.info("Creating background...")
+    background = background_image(path, width, height, blur_radius=base_blur)
     background = add_noise(background, args.base_noise)
     background = brighter(background, args.base_brightness)
     background = colorize(background, args.base_color)
@@ -808,10 +815,12 @@ def main():
 
     border = args.border_size * scale
 
+    logger.info("Adding shadow...")
     for i in range(count):
         layout.paste(i, shadow, shadow_offset)
 
     if args.cover_glow > 0:
+        logger.info("Adding glow...")
         for i in reversed(range(count)):
             extent1 = int(extent * (100 + args.cover_glow) / 100)
             img = loader.cover(i, extent1)
@@ -820,6 +829,7 @@ def main():
 
     albums = []
 
+    logger.info("Adding covers...")
     for i in reversed(range(count)):
         extent1 = extent - 2 * border
         img = loader.cover(i, extent1)
@@ -849,8 +859,13 @@ def main():
 
     path = image_path(album_dir, "wallpaper")
     info = image_info(**image_info_dict)
+    logger.info("Saving wallpaper...")
     background.save(path, pnginfo=info)
-    print(f"Wallpaper saved: {path}")
+    logger.info("Wallpaper saved: %s", path)
+
+
+def main():
+    asyncio.run(async_main())
 
 
 if __name__ == "__main__":
