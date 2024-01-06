@@ -346,7 +346,7 @@ def save_covers(album_dir, done, count):
     cache_paths = [result.result() for result in done if result.result()]
     for cache_path in cache_paths:
         count += 1
-        path = image_path(album_dir, count + 1)
+        path = image_path(album_dir, count)
         shutil.copyfile(cache_path, path)
     return count
 
