@@ -324,20 +324,19 @@ def find_album(album, search):
 
 
 async def get_cover_for_album(album, *, cache_path, search, session):
-    if os.path.isfile(cache_path):
+    found = find_album(album, search)
+    if found:
+        logger.info('Album "%s": Getting cover from "%s"', album, found)
+        save_cover(album, found, cache_path)
+    elif os.path.isfile(cache_path):
         logger.info('Album "%s": Using cached cover', album)
     else:
-        found = find_album(album, search)
-        if found:
-            logger.info('Album "%s": Getting cover from "%s"', album, found)
-            save_cover(album, found, cache_path)
-        else:
-            try:
-                logger.info('Album "%s": Downloading cover', album)
-                await download_cover(album, cache_path, session)
-            except DownloadCoverError as e:
-                logger.warning(e)
-                return None
+        try:
+            logger.info('Album "%s": Downloading cover', album)
+            await download_cover(album, cache_path, session)
+        except DownloadCoverError as e:
+            logger.warning(e)
+            return None
 
     return cache_path
 
