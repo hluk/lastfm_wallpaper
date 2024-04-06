@@ -306,7 +306,12 @@ def lastfm_user(api_key, api_secret, user):
 
 def to_pattern(text):
     case_insensitive = "".join(
-        f"[{c.lower()}{c.upper()}]" if c.isalpha() else c for c in str(text)
+        f"[{c.lower()}{c.upper()}]"
+        if c.isalpha()
+        else c
+        if c.isalnum() or c in (" ", "-")
+        else "*"
+        for c in str(text)
     )
     return f"*{case_insensitive}*"
 
