@@ -11,7 +11,7 @@ numpy = "^1.26.1"
 Pillow = "^10.3.0"
 pylast = "^4.5.0"
 requests = "^2.31.0"
-aiohttp = {extras = ["speedups"], version = "^3.9.2"}
+aiohttp = {extras = ["speedups"], version = "^3.9.4"}
 
 [tool.poetry.scripts]
 lastfm_wallpaper = "lastfm_wallpaper:main"
