@@ -208,6 +208,10 @@ def fix_name(name):
     return name
 
 
+def album_full_name(album):
+    return f"{fix_name(album.artist)} - {fix_name(album.title)}"
+
+
 def get_cover_image_from_lastfm(album):
     return album.get_cover_image(pylast.SIZE_MEGA)
 
@@ -224,9 +228,7 @@ async def get_cover_image_from_deezer(album, session):
     try:
         resp = await session.get(
             url,
-            params={
-                "q": f"{fix_name(album.artist)} - {fix_name(album.title)}",
-            },
+            params={"q": album_full_name(album)},
         )
         resp.raise_for_status()
         data = await resp.json()
@@ -356,7 +358,16 @@ def save_covers(album_dir, done, count):
 
 
 async def download_covers(
-    user, album_dir, from_date, to_date, max_count, search, tag_re, max_tags, session
+    user,
+    album_dir,
+    from_date,
+    to_date,
+    max_count,
+    search,
+    tag_re,
+    ignore_re,
+    max_tags,
+    session,
 ):
     cache_dir = os.path.join(album_dir, ".cache")
     os.makedirs(cache_dir, exist_ok=True)
@@ -369,6 +380,10 @@ async def download_covers(
     tasks = set()
     for top_item in top_items:
         album = top_item.item
+
+        if ignore_re and ignore_re.match(album_full_name(album)):
+            logger.info("Ignoring album: %s", album)
+            continue
 
         if tag_re:
             tags = album.artist.get_top_tags()
@@ -570,6 +585,13 @@ def parse_args():
         ),
     )
 
+    parser.add_argument(
+        "--ignore",
+        default=None,
+        type=str,
+        help=("Regular expression to ignore albums"),
+    )
+
     args = parser.parse_args()
     config = parse_config(args.config, args.server)
     config = {key.lower().replace("-", "_"): value for key, value in config.items()}
@@ -735,6 +757,7 @@ async def async_main():
         )
         image_info_dict["dates"] = f"{from_date.date()}..{to_date.date()}"
         tag_re = re.compile(args.tags, re.IGNORECASE) if args.tags else None
+        ignore_re = re.compile(args.ignore, re.IGNORECASE) if args.ignore else None
 
         logger.info("Fetching covers...")
         async with aiohttp.ClientSession() as session:
@@ -746,6 +769,7 @@ async def async_main():
                 max_count=max_count,
                 search=search,
                 tag_re=tag_re,
+                ignore_re=ignore_re,
                 max_tags=args.max_tags,
                 session=session,
             )
