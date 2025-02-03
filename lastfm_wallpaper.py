@@ -571,9 +571,7 @@ def parse_args():
         "--random-seed",
         default=-1,
         type=int,
-        help=(
-            "seed number to initialize random number generator; " "random if negative"
-        ),
+        help=("seed number to initialize random number generator; random if negative"),
     )
 
     parser.add_argument(
@@ -581,7 +579,7 @@ def parse_args():
         default=None,
         type=LayoutArgument,
         help=(
-            "cover positions and layout" '; space separated list of "row,column" values'
+            'cover positions and layout; space separated list of "row,column" values'
         ),
     )
 
