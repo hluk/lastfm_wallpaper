@@ -7,11 +7,11 @@ authors = ["Lukas Holecek <hluk@email.cz>"]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
-numpy = "^2.2.5"
+numpy = "^2.2.6"
 Pillow = "^11.2.1"
 pylast = "^5.5.0"
 requests = "^2.32.0"
-aiohttp = {extras = ["speedups"], version = "^3.11.18"}
+aiohttp = {extras = ["speedups"], version = "^3.12.6"}
 
 [tool.poetry.scripts]
 lastfm_wallpaper = "lastfm_wallpaper:main"
