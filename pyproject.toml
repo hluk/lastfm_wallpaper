@@ -8,7 +8,7 @@ authors = ["Lukas Holecek <hluk@email.cz>"]
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
 numpy = "^2.2.6"
-Pillow = "^11.2.1"
+Pillow = "^11.3.0"
 pylast = "^5.5.0"
 requests = "^2.32.4"
 aiohttp = {extras = ["speedups"], version = "^3.12.12"}
