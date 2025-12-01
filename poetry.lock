@@ -1443,21 +1443,21 @@ files = [
 
 [[package]]
 name = "pylast"
-version = "6.0.0"
+version = "7.0.0"
 description = "A Python interface to Last.fm and Libre.fm"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pylast-6.0.0-py3-none-any.whl", hash = "sha256:8570017a955a04c5694e7ad38b13081b6119531b4a10bfc771ccd0b9d4f900ee"},
-    {file = "pylast-6.0.0.tar.gz", hash = "sha256:09748dcdb97ddc812c65460bea73f7cce578b2b8ed4d9f6a0d1da122f8b05c5c"},
+    {file = "pylast-7.0.0-py3-none-any.whl", hash = "sha256:f6f7b19e65aee3b1a41c5c52b0eff27e1fdf1a010d52f96c6895c0b9bcb64739"},
+    {file = "pylast-7.0.0.tar.gz", hash = "sha256:05803f66d50e33521788f01eb30a9d4e3fbffbb4d81420826a2e3e9ca598a370"},
 ]
 
 [package.dependencies]
 httpx = ">=0.26"
 
 [package.extras]
-tests = ["flaky", "pytest", "pytest-cov", "pytest-random-order", "pyyaml"]
+tests = ["flaky", "pytest (>=9)", "pytest-cov", "pytest-random-order", "pytest-recording", "pyyaml"]
 
 [[package]]
 name = "requests"
@@ -1646,4 +1646,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "4aa79bd253ebf4a9095b58161c42b7a658bfc6607a41b6e9c9a683ac6918afd7"
+content-hash = "4025aca9128fc8e679aba68cbcec047146aede5ddfc7498e3dadca0307c44764"
