@@ -367,6 +367,7 @@ description = "Python bindings for the Brotli compression library"
 optional = false
 python-versions = "*"
 groups = ["main"]
+markers = "platform_python_implementation == \"CPython\""
 files = [
     {file = "brotli-1.2.0-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:99cfa69813d79492f0e5d52a20fd18395bc82e671d5d40bd5a91d13e75e468e8"},
     {file = "brotli-1.2.0-cp27-cp27m-manylinux1_i686.whl", hash = "sha256:3ebe801e0f4e56d17cd386ca6600573e3706ce1845376307f5d2cbd32149b69a"},
@@ -1417,14 +1418,14 @@ files = [
 
 [[package]]
 name = "pylast"
-version = "7.0.0"
+version = "7.0.1"
 description = "A Python interface to Last.fm and Libre.fm"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "pylast-7.0.0-py3-none-any.whl", hash = "sha256:f6f7b19e65aee3b1a41c5c52b0eff27e1fdf1a010d52f96c6895c0b9bcb64739"},
-    {file = "pylast-7.0.0.tar.gz", hash = "sha256:05803f66d50e33521788f01eb30a9d4e3fbffbb4d81420826a2e3e9ca598a370"},
+    {file = "pylast-7.0.1-py3-none-any.whl", hash = "sha256:86f115413f31d41a787008f0b8e64304518f4533c834bbb0b8bc249006fee553"},
+    {file = "pylast-7.0.1.tar.gz", hash = "sha256:319251236ba5c3e907232aacf1d6a7ff831f2243e85ace6ec6623a552ec2e0eb"},
 ]
 
 [package.dependencies]
@@ -1620,4 +1621,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.14"
-content-hash = "4025aca9128fc8e679aba68cbcec047146aede5ddfc7498e3dadca0307c44764"
+content-hash = "e3c561ce0e8dbe932fc3054c4a95f015049d83e914edf93736d40b35ed903bba"
