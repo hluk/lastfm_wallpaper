@@ -7,10 +7,10 @@ Last.fm.
 
 ## Dependencies
 
-The script requires Python 3.8 or greater.
+The script requires Python 3.10 or greater.
 
 ```bash
-poetry install --no-root
+uv sync
 ```
 
 ## Configuration
@@ -28,37 +28,37 @@ chart. If a cover image cannot be found, the album is skipped.
 Change the wallpaper size:
 
 ```bash
-poetry run lastfm_wallpaper --size 3840x2160
+uv run lastfm_wallpaper --size 3840x2160
 ```
 
 Show albums (and other info) in the last generated wallpaper:
 
 ```bash
-poetry run lastfm_wallpaper --info
+uv run lastfm_wallpaper --info
 ```
 
 Use monthly album chart:
 
 ```bash
-poetry run lastfm_wallpaper --days 30
+uv run lastfm_wallpaper --days 30
 ```
 
 Show fewer covers (six in two rows):
 
 ```bash
-poetry run lastfm_wallpaper --rows 2 --count 6
+uv run lastfm_wallpaper --rows 2 --count 6
 ```
 
 Album chart from year ago:
 
 ```bash
-poetry run lastfm_wallpaper --days-ago 365
+uv run lastfm_wallpaper --days-ago 365
 ```
 
 List available command line switches:
 
 ```bash
-poetry run lastfm_wallpaper --help
+uv run lastfm_wallpaper --help
 ```
 
 To avoid specifying the arguments repeatedly, you can set the options
