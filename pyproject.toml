@@ -8,7 +8,7 @@ requires-python = ">=3.10,<3.14"
 dependencies = [
     "numpy>=2.2.6,<3",
     "Pillow>=12.1.1,<13",
-    "pylast>=7.0.2,<8",
+    "pylast>=7.1.0,<8",
     "requests>=2.34.2,<3",
     "aiohttp[speedups]>=3.14.1,<4",
 ]
