@@ -10,7 +10,7 @@ dependencies = [
     "Pillow>=12.1.1,<13",
     "pylast>=7.0.2,<8",
     "requests>=2.34.2,<3",
-    "aiohttp[speedups]>=3.14.0,<4",
+    "aiohttp[speedups]>=3.14.1,<4",
 ]
 
 [project.scripts]
