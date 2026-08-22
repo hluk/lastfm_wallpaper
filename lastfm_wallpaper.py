@@ -181,8 +181,8 @@ def parse_layout(value):
         columns = max_y - min_y + 1
         positions = [(x - min_x, y - min_y) for x, y in positions]
         return positions, rows, columns
-    except Exception as e:
-        logger.exception("Failed to parse positions argument: %s", e)
+    except Exception:
+        logger.exception("Failed to parse positions argument")
         raise
 
 
@@ -241,8 +241,8 @@ async def get_cover_image_from_deezer(album, session):
         if matching_album:
             return matching_album["cover_xl"]
         logger.warning("No matching album from %r", url)
-    except Exception as e:
-        logger.warning("Failed to fetch cover from %r: %s", url, e)
+    except Exception:
+        logger.warning("Failed to fetch cover from %r", url, exc_info=True)
 
     return None
 
@@ -254,8 +254,10 @@ async def cover_for_album(album, session):
             cover_url = get_cover_image_from_lastfm(album)
         if not cover_url:
             raise DownloadCoverError("Cover URL not available")
+    except DownloadCoverError:
+        raise
     except Exception as e:
-        raise DownloadCoverError(f"Failed to get cover URL: {e}")
+        raise DownloadCoverError(f"Failed to get cover URL: {e}") from e
 
     return cover_url
 
@@ -747,7 +749,9 @@ async def async_main():
     if args.cached:
         count = max_count
     else:
-        to_date = datetime.datetime.now() - datetime.timedelta(days=args.days_ago)
+        to_date = datetime.datetime.now(tz=datetime.timezone.utc) - datetime.timedelta(
+            days=args.days_ago
+        )
         from_date = (
             to_date
             - datetime.timedelta(days=args.days)
